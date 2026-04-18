@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-slate-950 text-white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  .bg-slate-750 {
+    background-color: #1e293b;
+  }
+}
+
+@media print {
+  nav,
+  aside,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .bg-slate-800,
+  .bg-slate-900,
+  .bg-slate-950 {
+    background: white !important;
+  }
+
+  .text-white,
+  .text-slate-300,
+  .text-slate-400 {
+    color: #1e293b !important;
+  }
+
+  .border-slate-700,
+  .border-slate-800 {
+    border-color: #e2e8f0 !important;
+  }
+}
