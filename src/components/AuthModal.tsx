@@ -118,7 +118,7 @@ export default function AuthModal({ onClose, initialMode = 'login' }: AuthModalP
               disabled={isLoading}
               className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 font-semibold py-2.5 rounded-lg transition-colors text-sm"
             >
-              {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              {isLoading ? (mode === 'login' ? 'Signing in...' : 'Creating account...') : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 

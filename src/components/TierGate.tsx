@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Zap, LogIn, Lock } from 'lucide-react';
+import { Zap, LogIn, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from './AuthModal';
 
@@ -7,9 +7,11 @@ interface TierGateProps {
   children: ReactNode;
   requiredTier: 'pro';
   onUpgrade?: () => void;
+  isUpgradeLoading?: boolean;
+  checkoutError?: string;
 }
 
-export default function TierGate({ children, requiredTier, onUpgrade }: TierGateProps) {
+export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeLoading = false, checkoutError = '' }: TierGateProps) {
   const { user, isPro, isLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
@@ -61,13 +63,29 @@ export default function TierGate({ children, requiredTier, onUpgrade }: TierGate
         <p className="text-slate-500 text-sm mb-8">
           No subscriptions. No recurring fees. Yours forever.
         </p>
+        {checkoutError && (
+          <div className="w-full max-w-sm mb-4 flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5 text-left">
+            <AlertCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
+            <p className="text-sm text-red-300">{checkoutError}</p>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
           <button
             onClick={onUpgrade}
-            className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+            disabled={isUpgradeLoading}
+            className="flex-1 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            <Zap size={16} />
-            Unlock for $97 — One-Time
+            {isUpgradeLoading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Opening Stripe...
+              </>
+            ) : (
+              <>
+                <Zap size={16} />
+                Unlock for $97 — One-Time
+              </>
+            )}
           </button>
         </div>
         <p className="mt-4 text-xs text-slate-600">Secure payment via Stripe. Instant access.</p>

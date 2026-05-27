@@ -1,4 +1,4 @@
-import { Zap } from 'lucide-react';
+import { AlertCircle, Loader2, Zap } from 'lucide-react';
 import RoomOutput from '../components/RoomOutput';
 import type { RoomContent } from '../types';
 
@@ -55,9 +55,11 @@ const DEMO_ROOM: RoomContent = {
 
 interface DemoPageProps {
   onUpgrade: () => void;
+  isUpgradeLoading?: boolean;
+  checkoutError?: string;
 }
 
-export default function DemoPage({ onUpgrade }: DemoPageProps) {
+export default function DemoPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '' }: DemoPageProps) {
   return (
     <div>
       <div className="mb-8">
@@ -76,13 +78,31 @@ export default function DemoPage({ onUpgrade }: DemoPageProps) {
             <p className="text-white font-semibold">Want to generate your own custom room?</p>
             <p className="text-slate-400 text-sm">Unlimited generations, save to library, PDF export.</p>
           </div>
-          <button
-            onClick={onUpgrade}
-            className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold px-6 py-3 rounded-xl transition-colors shrink-0"
-          >
-            <Zap size={16} />
-            Upgrade to Pro — $97 One-Time
-          </button>
+          <div className="flex flex-col gap-2 shrink-0">
+            <button
+              onClick={onUpgrade}
+              disabled={isUpgradeLoading}
+              className="flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 font-bold px-6 py-3 rounded-xl transition-colors"
+            >
+              {isUpgradeLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Opening Stripe...
+                </>
+              ) : (
+                <>
+                  <Zap size={16} />
+                  Upgrade to Pro — $97 One-Time
+                </>
+              )}
+            </button>
+            {checkoutError && (
+              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2 max-w-xs">
+                <AlertCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
+                <p className="text-xs text-red-300">{checkoutError}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import PocketBase from 'pocketbase';
+import { publicConfig } from '../config';
 
-const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL);
+const pb = new PocketBase(publicConfig.pocketBaseUrl || 'http://127.0.0.1:8090');
 
 pb.autoCancellation(false);
 

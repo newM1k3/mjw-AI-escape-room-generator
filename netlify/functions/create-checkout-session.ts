@@ -1,72 +1,63 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
+import { emptyOptionsResponse, errorResponse, jsonResponse, methodNotAllowed, parseJsonBody, requiredEnv } from './_utils';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2024-06-20' });
+type CheckoutBody = {
+  userId?: string;
+  email?: string;
+};
+
+function getBaseUrl(eventHeaders: Record<string, string | undefined>): string {
+  const configuredUrl = process.env.SITE_URL?.trim() || process.env.URL?.trim() || '';
+  const requestOrigin = eventHeaders.origin || eventHeaders.referer || '';
+  const baseUrl = configuredUrl || requestOrigin || 'http://localhost:8888';
+  return baseUrl.replace(/\/$/, '');
+}
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      },
-      body: '',
-    };
+    return emptyOptionsResponse();
   }
 
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return methodNotAllowed(['POST', 'OPTIONS']);
   }
-
-  let body: { userId?: string; email?: string };
-  try {
-    body = JSON.parse(event.body || '{}');
-  } catch {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid body' }) };
-  }
-
-  const { userId, email } = body;
-  if (!userId || !email) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'userId and email are required' }) };
-  }
-
-  const origin = event.headers.origin || event.headers.referer || 'https://puzzleflow.ai';
-  const baseUrl = origin.replace(/\/$/, '');
 
   try {
+    const stripeSecretKey = requiredEnv('STRIPE_SECRET_KEY');
+    const stripePriceId = requiredEnv('STRIPE_PRICE_ID');
+    const stripe = new Stripe(stripeSecretKey);
+    const body = parseJsonBody<CheckoutBody>(event.body);
+    const { userId, email } = body;
+
+    if (!userId?.trim() || !email?.trim()) {
+      return jsonResponse(400, { error: 'userId and email are required.' });
+    }
+
+    const baseUrl = getBaseUrl(event.headers);
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: email,
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID || '',
+          price: stripePriceId,
           quantity: 1,
         },
       ],
       metadata: {
         userId,
       },
-      success_url: `${baseUrl}/saved?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/`,
+      success_url: `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/?checkout=cancelled`,
     });
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ sessionId: session.id, url: session.url }),
-    };
+    if (!session.url) {
+      return jsonResponse(502, { error: 'Stripe did not return a checkout URL.' });
+    }
+
+    return jsonResponse(200, { sessionId: session.id, url: session.url });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Checkout session creation failed';
-    return {
-      statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: msg }),
-    };
+    return errorResponse(err, 'Checkout session creation failed.');
   }
 };

@@ -8,9 +8,11 @@ import type { GeneratedRoom } from '../types';
 
 interface SavedRoomsPageProps {
   onUpgrade: () => void;
+  isUpgradeLoading?: boolean;
+  checkoutError?: string;
 }
 
-export default function SavedRoomsPage({ onUpgrade }: SavedRoomsPageProps) {
+export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '' }: SavedRoomsPageProps) {
   const { user } = useAuth();
   const [rooms, setRooms] = useState<GeneratedRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +23,7 @@ export default function SavedRoomsPage({ onUpgrade }: SavedRoomsPageProps) {
   const loadRooms = async () => {
     if (!user) return;
     setIsLoading(true);
+    setError('');
     try {
       const records = await pb.collection('generated_rooms').getFullList<GeneratedRoom>({
         filter: `user = "${user.id}"`,
@@ -41,11 +44,13 @@ export default function SavedRoomsPage({ onUpgrade }: SavedRoomsPageProps) {
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
+    setError('');
     try {
       await pb.collection('generated_rooms').delete(id);
       setRooms((prev) => prev.filter((r) => r.id !== id));
       if (selectedRoom?.id === id) setSelectedRoom(null);
     } catch (err) {
+      setError('Failed to delete saved room. Please try again.');
       console.error('Delete failed', err);
     } finally {
       setDeletingId(null);
@@ -74,7 +79,7 @@ export default function SavedRoomsPage({ onUpgrade }: SavedRoomsPageProps) {
         <p className="text-slate-400">Your saved escape room puzzle flows.</p>
       </div>
 
-      <TierGate requiredTier="pro" onUpgrade={onUpgrade}>
+      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError}>
         {selectedRoom ? (
           <div>
             <button

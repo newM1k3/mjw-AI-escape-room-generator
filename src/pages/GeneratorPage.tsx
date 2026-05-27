@@ -8,6 +8,8 @@ import type { GeneratorFormData, RoomContent } from '../types';
 
 interface GeneratorPageProps {
   onUpgrade: () => void;
+  isUpgradeLoading?: boolean;
+  checkoutError?: string;
 }
 
 const defaultForm: GeneratorFormData = {
@@ -18,7 +20,7 @@ const defaultForm: GeneratorFormData = {
   duration: '60 mins',
 };
 
-export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
+export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '' }: GeneratorPageProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<GeneratorFormData>(defaultForm);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -26,12 +28,14 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setGeneratedRoom(null);
     setIsSaved(false);
+    setSaveError('');
     setIsGenerating(true);
 
     try {
@@ -57,6 +61,7 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
 
   const handleSave = async () => {
     if (!generatedRoom || !user) return;
+    setSaveError('');
     setIsSaving(true);
     try {
       await pb.collection('generated_rooms').create({
@@ -68,6 +73,8 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
       });
       setIsSaved(true);
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Save failed. Please try again.';
+      setSaveError(message);
       console.error('Save failed', err);
     } finally {
       setIsSaving(false);
@@ -113,7 +120,7 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
         <p className="text-slate-400">Configure your escape room parameters and generate a complete puzzle flow.</p>
       </div>
 
-      <TierGate requiredTier="pro" onUpgrade={onUpgrade}>
+      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError}>
         <div className="grid lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2">
             <form onSubmit={handleGenerate} className="bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 sticky top-6">
@@ -185,7 +192,7 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
 
               {isGenerating && (
                 <p className="text-center text-slate-500 text-xs">
-                  Claude is designing your room... this takes ~15 seconds
+                  AI is designing your room... this takes ~15 seconds
                 </p>
               )}
             </form>
@@ -193,13 +200,20 @@ export default function GeneratorPage({ onUpgrade }: GeneratorPageProps) {
 
           <div className="lg:col-span-3">
             {generatedRoom ? (
-              <RoomOutput
-                room={generatedRoom}
-                onSave={handleSave}
-                onExport={handleExport}
-                isSaving={isSaving}
-                isSaved={isSaved}
-              />
+              <>
+                {saveError && (
+                  <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                    <p className="text-sm text-red-300">{saveError}</p>
+                  </div>
+                )}
+                <RoomOutput
+                  room={generatedRoom}
+                  onSave={handleSave}
+                  onExport={handleExport}
+                  isSaving={isSaving}
+                  isSaved={isSaved}
+                />
+              </>
             ) : (
               <div className="bg-slate-800 border border-slate-700 border-dashed rounded-2xl flex flex-col items-center justify-center py-24 px-6 text-center h-full min-h-80">
                 <div className="w-14 h-14 bg-slate-700 rounded-xl flex items-center justify-center mb-5">

@@ -1,55 +1,64 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import PocketBase from 'pocketbase';
+import { errorResponse, jsonResponse, methodNotAllowed, requiredEnv } from './_utils';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', { apiVersion: '2024-06-20' });
+async function authenticatePocketBase(pb: PocketBase) {
+  const superuserToken = process.env.PB_SUPERUSER_TOKEN?.trim();
+
+  if (superuserToken) {
+    pb.authStore.save(superuserToken);
+    return;
+  }
+
+  const pocketBaseAdminEmail = requiredEnv('PB_ADMIN_EMAIL');
+  const pocketBaseAdminPassword = requiredEnv('PB_ADMIN_PASSWORD');
+  await pb.collection('_superusers').authWithPassword(pocketBaseAdminEmail, pocketBaseAdminPassword);
+}
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
+    return methodNotAllowed(['POST']);
   }
 
-  const sig = event.headers['stripe-signature'];
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-
-  if (!sig) {
-    return { statusCode: 400, body: 'Missing stripe-signature header' };
-  }
-
-  let stripeEvent: Stripe.Event;
   try {
-    stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Webhook signature verification failed';
-    return { statusCode: 400, body: `Webhook error: ${msg}` };
-  }
+    const stripeSecretKey = requiredEnv('STRIPE_SECRET_KEY');
+    const webhookSecret = requiredEnv('STRIPE_WEBHOOK_SECRET');
+    const pocketBaseUrl = requiredEnv('PB_URL');
+    const stripe = new Stripe(stripeSecretKey);
+    const sig = event.headers['stripe-signature'];
 
-  if (stripeEvent.type === 'checkout.session.completed') {
-    const session = stripeEvent.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.userId;
-
-    if (!userId) {
-      return { statusCode: 400, body: 'No userId in session metadata' };
+    if (!sig) {
+      return jsonResponse(400, { error: 'Missing stripe-signature header.' });
     }
 
-    const pb = new PocketBase(process.env.VITE_POCKETBASE_URL || '');
-
+    let stripeEvent: any;
     try {
-      await pb.admins.authWithPassword(
-        process.env.PB_ADMIN_EMAIL || '',
-        process.env.PB_ADMIN_PASSWORD || ''
-      );
+      stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Webhook signature verification failed';
+      return jsonResponse(400, { error: `Webhook signature verification failed: ${msg}` });
+    }
+
+    if (stripeEvent.type === 'checkout.session.completed') {
+      const session = stripeEvent.data.object as any;
+      const userId = session.metadata?.userId;
+
+      if (!userId) {
+        return jsonResponse(400, { error: 'No userId was found in the Stripe session metadata.' });
+      }
+
+      const pb = new PocketBase(pocketBaseUrl);
+      await authenticatePocketBase(pb);
 
       await pb.collection('users').update(userId, {
         tier: 'pro',
-        stripe_customer_id: session.customer as string || '',
+        stripe_customer_id: typeof session.customer === 'string' ? session.customer : '',
       });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'PocketBase update failed';
-      console.error('PocketBase update failed:', msg);
-      return { statusCode: 500, body: `PocketBase error: ${msg}` };
     }
-  }
 
-  return { statusCode: 200, body: JSON.stringify({ received: true }) };
+    return jsonResponse(200, { received: true });
+  } catch (err: unknown) {
+    return errorResponse(err, 'Stripe webhook processing failed.');
+  }
 };
