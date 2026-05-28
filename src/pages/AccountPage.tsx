@@ -42,10 +42,11 @@ export default function AccountPage({ onSignOut, onUpgrade, isUpgradeLoading }: 
   }
 
   const purchaseStatus = isPro
-    ? 'Pro access active'
+    ? 'Pro Lifetime Access active'
     : user.stripe_customer_id
       ? 'Stripe customer found, but Pro access is not active yet'
       : 'No Pro purchase recorded';
+  const purchasedAt = user.pro_purchased_at ? new Date(user.pro_purchased_at).toLocaleString() : null;
 
   return (
     <div className="max-w-3xl">
@@ -87,6 +88,10 @@ export default function AccountPage({ onSignOut, onUpgrade, isUpgradeLoading }: 
               <ShieldCheck size={15} /> Purchase Status
             </div>
             <p className="text-white font-medium">{purchaseStatus}</p>
+            {purchasedAt && <p className="text-sm text-slate-300 mt-2">Purchased: {purchasedAt}</p>}
+            {user.stripe_checkout_session_id && (
+              <p className="text-xs text-slate-500 mt-2 break-all">Stripe checkout session: {user.stripe_checkout_session_id}</p>
+            )}
             <p className="text-xs text-slate-500 mt-2">
               Pro status is read from your PocketBase user record. Browser local storage is used only to hold the PocketBase auth session.
             </p>

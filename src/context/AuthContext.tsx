@@ -13,6 +13,7 @@ interface AuthContextValue {
   requestPasswordReset: (email: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  authToken: string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -221,10 +222,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadUser();
   };
 
-  const isPro = user?.tier === 'pro';
+  const isPro = user?.tier === 'pro' || user?.role === 'pro' || user?.is_pro === true;
+
+  const authToken = pb.authStore.token || '';
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isPro, login, register, requestPasswordReset, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, isPro, login, register, requestPasswordReset, logout, refreshUser, authToken }}>
       {children}
     </AuthContext.Provider>
   );

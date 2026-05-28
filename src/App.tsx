@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import GeneratorPage from './pages/GeneratorPage';
@@ -13,7 +13,7 @@ function AppShell() {
   const [currentPage, setCurrentPage] = useState<Page>('generator');
   const [checkoutError, setCheckoutError] = useState('');
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, logout, authToken, refreshUser } = useAuth();
 
   const navigateTo = (page: Page) => {
     setCheckoutError('');
@@ -30,7 +30,7 @@ function AppShell() {
   const handleUpgrade = async () => {
     setCheckoutError('');
 
-    if (!user) {
+    if (!user || !authToken) {
       setCurrentPage('demo');
       setCheckoutError('Please sign in or create an account before upgrading to Pro.');
       return;
@@ -40,8 +40,11 @@ function AppShell() {
     try {
       const res = await fetch('/.netlify/functions/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, email: user.email }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -58,10 +61,34 @@ function AppShell() {
       const message = err instanceof Error ? err.message : 'Checkout could not be started. Please try again.';
       setCheckoutError(message);
       console.error('Checkout error', err);
-    } finally {
       setIsCheckoutLoading(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get('checkout');
+
+    if (!checkoutStatus) return;
+
+    if (checkoutStatus === 'success') {
+      setCurrentPage('account');
+      setCheckoutError('Payment received. Refreshing your account so Pro access appears as soon as Stripe confirms the purchase.');
+      refreshUser().catch((err) => {
+        console.error('Account refresh after checkout failed', err);
+      });
+    }
+
+    if (checkoutStatus === 'cancelled') {
+      setCheckoutError('Checkout was cancelled. You can restart the Pro upgrade whenever you are ready.');
+    }
+
+    params.delete('checkout');
+    params.delete('session_id');
+    const nextQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+  }, [refreshUser]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex">

@@ -3,7 +3,11 @@ export interface UserRecord {
   email: string;
   name?: string;
   tier: 'free' | 'pro';
+  role?: 'free' | 'pro' | string;
+  is_pro?: boolean;
   stripe_customer_id?: string;
+  stripe_checkout_session_id?: string;
+  pro_purchased_at?: string;
   created: string;
   updated: string;
 }
