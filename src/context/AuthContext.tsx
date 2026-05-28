@@ -2,17 +2,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import pb from '../lib/pocketbase';
 import { getPublicConfigWarning } from '../config';
+import { getEntitlementStatus, hasProEntitlement, type EntitlementStatus } from '../lib/entitlements';
 import type { UserRecord } from '../types';
 
 interface AuthContextValue {
   user: UserRecord | null;
   isLoading: boolean;
+  isEntitlementLoading: boolean;
+  entitlementStatus: EntitlementStatus;
   isPro: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<UserRecord | null>;
   authToken: string;
 }
 
@@ -113,16 +116,19 @@ function getPasswordResetErrorMessage(error: unknown): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEntitlementLoading, setIsEntitlementLoading] = useState(true);
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (): Promise<UserRecord | null> => {
     setIsLoading(true);
+    setIsEntitlementLoading(true);
     const configWarning = getPublicConfigWarning();
     if (configWarning) {
       console.warn(configWarning);
       pb.authStore.clear();
       setUser(null);
       setIsLoading(false);
-      return;
+      setIsEntitlementLoading(false);
+      return null;
     }
 
     if (pb.authStore.isValid && pb.authStore.model) {
@@ -132,17 +138,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Authentication refresh timed out. Please check the PocketBase connection and try again.'
         );
         setUser(record);
+        return record;
       } catch (error) {
         console.warn('Clearing invalid PocketBase auth state:', getAuthErrorMessage(error));
         pb.authStore.clear();
         setUser(null);
+        return null;
       } finally {
         setIsLoading(false);
+        setIsEntitlementLoading(false);
       }
-    } else {
-      setUser(null);
-      setIsLoading(false);
     }
+
+    setUser(null);
+    setIsLoading(false);
+    setIsEntitlementLoading(false);
+    return null;
   }, []);
 
   useEffect(() => {
@@ -216,18 +227,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pb.authStore.clear();
     setUser(null);
     setIsLoading(false);
+    setIsEntitlementLoading(false);
   };
 
   const refreshUser = async () => {
-    await loadUser();
+    return loadUser();
   };
 
-  const isPro = user?.tier === 'pro' || user?.role === 'pro' || user?.is_pro === true;
-
+  const entitlementStatus = getEntitlementStatus(user, isLoading || isEntitlementLoading);
+  const isPro = hasProEntitlement(user);
   const authToken = pb.authStore.token || '';
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isPro, login, register, requestPasswordReset, logout, refreshUser, authToken }}>
+    <AuthContext.Provider value={{ user, isLoading, isEntitlementLoading, entitlementStatus, isPro, login, register, requestPasswordReset, logout, refreshUser, authToken }}>
       {children}
     </AuthContext.Provider>
   );

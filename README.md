@@ -27,13 +27,25 @@ The app expects three Netlify Functions under `netlify/functions`.
 
 | Function | Purpose | Notes |
 |---|---|---|
-| `generate-room` | Calls Anthropic and returns a structured escape-room JSON object. | Missing `ANTHROPIC_API_KEY` returns a clear JSON error instead of crashing. |
+| `generate-room` | Validates the current PocketBase bearer token, verifies authoritative Pro entitlement, calls Anthropic, and returns a structured escape-room JSON object. | Missing auth returns `401`, non-Pro users receive `403`, and missing `ANTHROPIC_API_KEY` / `PB_URL` returns a clear JSON error instead of crashing. |
 | `create-checkout-session` | Validates the current PocketBase bearer token server-side and creates a Stripe Checkout Session for the $97 one-time Pro Lifetime Access purchase. | Missing Stripe/PocketBase env vars or invalid auth returns clear JSON errors. The UI displays checkout failures. |
 | `stripe-webhook` | Receives `checkout.session.completed`, verifies Stripe's signature, and upgrades the PocketBase user to permanent Pro access. | Requires Stripe webhook signing and `PB_SUPERUSER_TOKEN` or fallback PocketBase superuser credentials. |
 
 ## PocketBase Requirements
 
 PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`. For the Stripe lifetime Pro flow, add the entitlement fields `role` (text), `is_pro` (boolean), `stripe_customer_id` (text), `stripe_checkout_session_id` (text), and `pro_purchased_at` (date/text compatible with an ISO timestamp). The webhook first attempts to write the full entitlement payload and falls back to legacy `tier` plus `stripe_customer_id` if the newer fields are not present, but the full schema is recommended before production. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. The app also expects a `generated_rooms` collection with fields for `user`, `title`, `theme`, `difficulty`, and `content`. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
+
+Saved-room create/list/view/delete operations currently use authenticated client-side PocketBase calls, so the `generated_rooms` collection rules must enforce owner and entitlement checks directly in PocketBase. Recommended production rules are:
+
+| Rule | Recommended expression |
+|---|---|
+| List/Search | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
+| View | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
+| Create | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
+| Update | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
+| Delete | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
+
+These rules prevent one user from reading or deleting another user's saved rooms and prevent free accounts from creating or accessing saved generated-room records even if they bypass the frontend gate.
 
 Password reset uses PocketBase's built-in `requestPasswordReset` flow. Before public launch, configure PocketBase mail settings, set the correct application URL in PocketBase, and test the reset email end-to-end. If PocketBase email delivery is not configured, the app will show a friendly support-oriented message instead of leaving the user stuck.
 
@@ -62,10 +74,13 @@ For local Netlify Function testing, use the Netlify CLI or deploy previews with 
 
 ## Verification
 
-Run the production build before deploying:
+Run the production checks before deploying:
 
 ```bash
+npm run lint
+npm run typecheck
 npm run build
+npx tsc --noEmit --moduleResolution bundler --module esnext --target esnext netlify/functions/*.ts
 ```
 
-A successful build confirms the React/Vite frontend compiles. Netlify Function runtime behavior still depends on the production environment variables listed above.
+A successful build confirms the React/Vite frontend compiles and the Netlify Functions typecheck. Netlify Function runtime behavior still depends on the production environment variables listed above.

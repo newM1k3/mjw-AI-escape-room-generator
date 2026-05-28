@@ -22,7 +22,7 @@ const defaultForm: GeneratorFormData = {
 };
 
 export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '', onNavigateLegal }: GeneratorPageProps) {
-  const { user } = useAuth();
+  const { user, authToken } = useAuth();
   const [form, setForm] = useState<GeneratorFormData>(defaultForm);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedRoom, setGeneratedRoom] = useState<RoomContent | null>(null);
@@ -40,9 +40,16 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
     setIsGenerating(true);
 
     try {
+      if (!authToken) {
+        throw new Error('Please sign in again before generating rooms.');
+      }
+
       const res = await fetch('/.netlify/functions/generate-room', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
         body: JSON.stringify(form),
       });
 
