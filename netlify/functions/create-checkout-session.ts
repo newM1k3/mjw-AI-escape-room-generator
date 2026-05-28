@@ -81,8 +81,8 @@ export const handler: Handler = async (event) => {
         user_email: user.email,
         product: 'puzzleflow_pro_lifetime',
       },
-      success_url: `${appBaseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appBaseUrl}/?checkout=cancelled`,
+      success_url: `${appBaseUrl}/app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appBaseUrl}/app?checkout=cancelled`,
     });
 
     if (!session.url) {

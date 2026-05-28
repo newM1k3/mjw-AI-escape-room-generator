@@ -21,9 +21,12 @@ Before deploying to Netlify, configure the following environment variables in **
 | `PB_SUPERUSER_TOKEN` | Netlify Functions | Recommended | Preferred server-only PocketBase superuser token used by the Stripe webhook to grant Pro access without storing a password. |
 | `PB_ADMIN_EMAIL` | Netlify Functions | Fallback | Server-only PocketBase superuser email used only if `PB_SUPERUSER_TOKEN` is not configured. |
 | `PB_ADMIN_PASSWORD` | Netlify Functions | Fallback | Server-only PocketBase superuser password used only if `PB_SUPERUSER_TOKEN` is not configured. |
-| `APP_BASE_URL` | Netlify Functions | Yes | Canonical production app URL for Stripe success/cancel redirects, for example `https://your-site.netlify.app` or a custom domain. |
+| `APP_BASE_URL` | Netlify Functions/build | Yes | Canonical production URL used for Stripe success/cancel redirects and generated `sitemap.xml`/`robots.txt`, for example `https://your-site.netlify.app` or a custom domain. |
+| `VITE_APP_BASE_URL` | Frontend/build | Recommended | Public canonical URL fallback for landing-page canonical metadata when `APP_BASE_URL` is not available to the browser. |
 
 ## Netlify Functions
+
+The public site now uses `/` and `/landing` for the marketing landing page, `/app` for the logged-in dashboard/generator experience, and `/demo` for the public Alchemist's Study demo. Netlify's SPA redirect keeps these routes available on direct refresh. `npm run dev` and `npm run build` generate `public/sitemap.xml` and `public/robots.txt` from `APP_BASE_URL` when it is available.
 
 The app expects three Netlify Functions under `netlify/functions`.
 
@@ -83,7 +86,7 @@ Create a one-time Stripe product named **PuzzleFlow AI Pro Lifetime Access** wit
 https://YOUR_NETLIFY_SITE/.netlify/functions/stripe-webhook
 ```
 
-Subscribe the webhook to `checkout.session.completed`, copy the webhook signing secret, and set `STRIPE_WEBHOOK_SECRET` in Netlify. After payment, Stripe returns users to `APP_BASE_URL/?checkout=success&session_id={CHECKOUT_SESSION_ID}`; cancelled checkouts return to `APP_BASE_URL/?checkout=cancelled`.
+Subscribe the webhook to `checkout.session.completed`, copy the webhook signing secret, and set `STRIPE_WEBHOOK_SECRET` in Netlify. After payment, Stripe returns users to `APP_BASE_URL/app/account?checkout=success&session_id={CHECKOUT_SESSION_ID}` so the entitlement refresh screen opens inside the dashboard. Cancelled checkouts return to `APP_BASE_URL/app?checkout=cancelled`.
 
 ## Local Development
 

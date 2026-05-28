@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">PuzzleFlow AI social preview</title>
+  <desc id="desc">A dark escape-room planning board with connected puzzle nodes and the PuzzleFlow AI product headline.</desc>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="35%" r="60%">
+      <stop stop-color="#164e63" stop-opacity="0.85"/>
+      <stop offset="0.55" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="220" y1="175" x2="980" y2="455" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g opacity="0.22" stroke="#38bdf8" stroke-width="2">
+    <path d="M0 92H1200M0 184H1200M0 276H1200M0 368H1200M0 460H1200M0 552H1200"/>
+    <path d="M100 0V630M220 0V630M340 0V630M460 0V630M580 0V630M700 0V630M820 0V630M940 0V630M1060 0V630"/>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="96" y="86" width="1008" height="458" rx="34" fill="#0f172a" stroke="#164e63" stroke-width="3"/>
+    <path d="M210 418C300 228 440 384 555 252C675 114 764 326 934 188" fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+    <g fill="#22d3ee">
+      <circle cx="210" cy="418" r="18"/>
+      <circle cx="555" cy="252" r="18"/>
+    </g>
+    <g fill="#fbbf24">
+      <circle cx="934" cy="188" r="18"/>
+      <circle cx="392" cy="350" r="14"/>
+      <circle cx="728" cy="292" r="14"/>
+    </g>
+    <text x="150" y="176" fill="#67e8f9" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="4">PUZZLEFLOW AI</text>
+    <text x="150" y="276" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900">Production-ready</text>
+    <text x="150" y="345" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="58" font-weight="900">escape-room puzzle flows</text>
+    <text x="150" y="458" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">Theme → puzzle chain → props → reset checklist → operator plan</text>
+  </g>
+</svg>

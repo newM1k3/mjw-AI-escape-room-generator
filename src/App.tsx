@@ -7,6 +7,7 @@ import SavedRoomsPage from './pages/SavedRoomsPage';
 import DemoPage from './pages/DemoPage';
 import AccountPage from './pages/AccountPage';
 import LegalPage from './pages/LegalPage';
+import LandingPage from './pages/LandingPage';
 import { describeEntitlementDelay } from './lib/entitlements';
 
 export type Page = 'generator' | 'saved' | 'demo' | 'account' | 'terms' | 'privacy';
@@ -16,8 +17,44 @@ type CheckoutBanner = {
   text: string;
 };
 
+type RouteState = {
+  isLanding: boolean;
+  page: Page;
+};
+
+const pagePaths: Record<Page, string> = {
+  generator: '/app',
+  saved: '/app/rooms',
+  demo: '/demo',
+  account: '/app/account',
+  terms: '/terms',
+  privacy: '/privacy',
+};
+
+function resolveRoute(pathname: string): RouteState {
+  if (pathname === '/' || pathname === '/landing') return { isLanding: true, page: 'generator' };
+  if (pathname === '/app' || pathname === '/app/') return { isLanding: false, page: 'generator' };
+  if (pathname === '/app/rooms' || pathname === '/my-rooms') return { isLanding: false, page: 'saved' };
+  if (pathname === '/app/account') return { isLanding: false, page: 'account' };
+  if (pathname === '/demo') return { isLanding: false, page: 'demo' };
+  if (pathname === '/terms') return { isLanding: false, page: 'terms' };
+  if (pathname === '/privacy') return { isLanding: false, page: 'privacy' };
+  return { isLanding: false, page: 'generator' };
+}
+
+function pushPath(path: string) {
+  if (window.location.pathname === path && !window.location.search && !window.location.hash) return;
+  window.history.pushState({}, '', path);
+}
+
+function replacePath(path: string) {
+  window.history.replaceState({}, '', path);
+}
+
 function AppShell() {
-  const [currentPage, setCurrentPage] = useState<Page>('generator');
+  const initialRoute = resolveRoute(window.location.pathname);
+  const [currentPage, setCurrentPage] = useState<Page>(initialRoute.page);
+  const [isLandingView, setIsLandingView] = useState(initialRoute.isLanding);
   const [checkoutBanner, setCheckoutBanner] = useState<CheckoutBanner | null>(null);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isUnlockingPro, setIsUnlockingPro] = useState(false);
@@ -32,11 +69,30 @@ function AppShell() {
   }, [hasUnsavedGeneratedRoom]);
 
   const navigateTo = useCallback((page: Page) => {
-    if (page !== currentPage && !confirmDiscardUnsavedRoom()) return;
+    if ((!isLandingView && page !== currentPage) && !confirmDiscardUnsavedRoom()) return;
     setCheckoutBanner(null);
     setCurrentPage(page);
+    setIsLandingView(false);
+    pushPath(pagePaths[page]);
     if (page !== 'generator') setHasUnsavedGeneratedRoom(false);
-  }, [confirmDiscardUnsavedRoom, currentPage]);
+  }, [confirmDiscardUnsavedRoom, currentPage, isLandingView]);
+
+  const navigateToLanding = useCallback(() => {
+    if (!isLandingView && !confirmDiscardUnsavedRoom()) return;
+    setCheckoutBanner(null);
+    setIsLandingView(true);
+    setCurrentPage('generator');
+    setHasUnsavedGeneratedRoom(false);
+    pushPath('/');
+  }, [confirmDiscardUnsavedRoom, isLandingView]);
+
+  const navigateToApp = useCallback(() => {
+    if (!isLandingView && currentPage !== 'generator' && !confirmDiscardUnsavedRoom()) return;
+    setCheckoutBanner(null);
+    setIsLandingView(false);
+    setCurrentPage('generator');
+    pushPath('/app');
+  }, [confirmDiscardUnsavedRoom, currentPage, isLandingView]);
 
   const handleSafeSignOut = () => {
     if (!confirmDiscardUnsavedRoom()) return;
@@ -45,7 +101,9 @@ function AppShell() {
     setIsCheckoutLoading(false);
     setIsUnlockingPro(false);
     setHasUnsavedGeneratedRoom(false);
+    setIsLandingView(false);
     setCurrentPage('demo');
+    pushPath('/demo');
   };
 
   const refreshEntitlementAfterCheckout = useCallback(async () => {
@@ -87,7 +145,9 @@ function AppShell() {
     setCheckoutBanner(null);
 
     if (!user || !authToken) {
+      setIsLandingView(false);
       setCurrentPage('demo');
+      pushPath('/demo');
       setCheckoutBanner({ type: 'error', text: 'Please sign in or create an account before upgrading to Pro.' });
       return;
     }
@@ -122,12 +182,26 @@ function AppShell() {
   };
 
   useEffect(() => {
+    const handlePopState = () => {
+      const route = resolveRoute(window.location.pathname);
+      setIsLandingView(route.isLanding);
+      setCurrentPage(route.page);
+      if (route.page !== 'generator') setHasUnsavedGeneratedRoom(false);
+      setCheckoutBanner(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkoutStatus = params.get('checkout');
 
     if (!checkoutStatus) return;
 
     if (checkoutStatus === 'success') {
+      setIsLandingView(false);
       setCurrentPage('account');
       refreshEntitlementAfterCheckout();
     }
@@ -139,8 +213,9 @@ function AppShell() {
     params.delete('checkout');
     params.delete('session_id');
     const nextQuery = params.toString();
-    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
-    window.history.replaceState({}, '', nextUrl);
+    const targetPath = checkoutStatus === 'success' ? pagePaths.account : window.location.pathname;
+    const nextUrl = `${targetPath}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+    replacePath(nextUrl);
   }, [refreshEntitlementAfterCheckout]);
 
   useEffect(() => {
@@ -153,6 +228,18 @@ function AppShell() {
     }
   }, [isPro, checkoutBanner?.text]);
 
+  if (isLandingView) {
+    return (
+      <LandingPage
+        onNavigate={navigateTo}
+        onNavigateApp={navigateToApp}
+        onUpgrade={handleUpgrade}
+        isUpgradeLoading={isCheckoutLoading}
+        checkoutError={checkoutError}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex">
       <Sidebar
@@ -160,6 +247,7 @@ function AppShell() {
         onNavigate={navigateTo}
         onUpgrade={handleUpgrade}
         onSignOut={handleSafeSignOut}
+        onNavigateLanding={navigateToLanding}
       />
 
       <main className="flex-1 lg:ml-60 min-h-screen">

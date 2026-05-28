@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/generate-seo-assets.cjs && vite",
+    "prebuild": "node scripts/generate-seo-assets.cjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">PuzzleFlow AI favicon</title>
+  <desc id="desc">A cyan puzzle-route mark on a dark rounded square.</desc>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="line" x1="15" y1="14" x2="49" y2="50" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="none" stroke="#164e63" stroke-width="2"/>
+  <path d="M17 20h11v8h8v-8h11v24H17V20Z" fill="#083344" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M18 44c8-16 18-8 28-24" fill="none" stroke="url(#line)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="18" cy="44" r="4" fill="#22d3ee"/>
+  <circle cx="46" cy="20" r="4" fill="#fbbf24"/>
+  <path d="M28 32h8" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round"/>
+</svg>

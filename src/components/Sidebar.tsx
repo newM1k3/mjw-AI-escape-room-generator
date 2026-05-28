@@ -9,9 +9,10 @@ interface SidebarProps {
   onNavigate: (page: Page) => void;
   onUpgrade: () => void;
   onSignOut: () => void;
+  onNavigateLanding?: () => void;
 }
 
-export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut }: SidebarProps) {
+export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut, onNavigateLanding }: SidebarProps) {
   const { user, isPro } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -35,7 +36,11 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="px-5 py-6 border-b border-slate-800">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={onNavigateLanding}
+          className="flex items-center gap-3 text-left w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+          aria-label="View PuzzleFlow AI landing page"
+        >
           <div className="w-9 h-9 bg-cyan-500 rounded-lg flex items-center justify-center shrink-0">
             <Wand2 size={18} className="text-slate-900" />
           </div>
@@ -43,7 +48,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut 
             <h1 className="text-white font-bold text-base leading-tight">PuzzleFlow AI</h1>
             <p className="text-slate-500 text-xs">Escape Room Generator</p>
           </div>
-        </div>
+        </button>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
