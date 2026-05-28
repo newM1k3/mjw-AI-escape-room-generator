@@ -1,6 +1,6 @@
 # PuzzleFlow AI
 
-PuzzleFlow AI is a React/Vite application deployed on Netlify for generating premium escape-room puzzle flows. It uses PocketBase for authentication and saved rooms, Stripe for Pro checkout, and Anthropic for server-side AI generation.
+PuzzleFlow AI is a React/Vite application deployed on Netlify for generating premium escape-room puzzle flows. It uses PocketBase for authentication and saved rooms, Stripe for Pro checkout, and a server-side AI provider selected with `AI_PROVIDER` (`openai`, `gemini`, or `mock`) for room generation.
 
 ## Production Setup Checklist
 
@@ -10,8 +10,10 @@ Before deploying to Netlify, configure the following environment variables in **
 |---|---:|---:|---|
 | `VITE_POCKETBASE_URL` | Frontend | Yes | Public PocketBase URL used by the browser for user auth and saved-room reads/writes, for example `https://mjwdesign-core.pockethost.io`. |
 | `VITE_SUPPORT_EMAIL` | Frontend | Recommended | Public support contact shown in auth, account, legal, and password-reset copy. Defaults to `support@example.com`, but should be set before launch. |
-| `ANTHROPIC_API_KEY` | Netlify Functions | Yes | Server-only Anthropic API key used by `/.netlify/functions/generate-room`. |
-| `ANTHROPIC_MODEL` | Netlify Functions | No | Optional Anthropic model override. Defaults to `claude-sonnet-4-5`. |
+| `AI_PROVIDER` | Netlify Functions | Yes | Server-only provider selector for `/.netlify/functions/generate-room`. Supported values: `openai`, `gemini`, or `mock`. |
+| `AI_MODEL` | Netlify Functions | No | Optional model override. Defaults to `gpt-4.1-mini` for OpenAI, `gemini-2.5-flash` for Gemini, and `mock-room-designer-v1` for mock mode. |
+| `OPENAI_API_KEY` | Netlify Functions | Required when `AI_PROVIDER=openai` | Server-only OpenAI API key used only by the Netlify Function. Do not expose it with a `VITE_` prefix. |
+| `GEMINI_API_KEY` | Netlify Functions | Required when `AI_PROVIDER=gemini` | Server-only Gemini API key used only by the Netlify Function. Do not expose it with a `VITE_` prefix. |
 | `STRIPE_SECRET_KEY` | Netlify Functions | Yes | Server-only Stripe secret key used to create checkout sessions and verify webhook behavior. |
 | `STRIPE_PRICE_ID_PRO` | Netlify Functions | Yes | Stripe one-time price ID for the $97 PuzzleFlow AI Pro Lifetime Access product. |
 | `STRIPE_WEBHOOK_SECRET` | Netlify Functions | Yes | Stripe webhook signing secret for the Netlify webhook endpoint. |
@@ -27,9 +29,13 @@ The app expects three Netlify Functions under `netlify/functions`.
 
 | Function | Purpose | Notes |
 |---|---|---|
-| `generate-room` | Validates the current PocketBase bearer token, verifies authoritative Pro entitlement, calls Anthropic, and returns a structured escape-room JSON object. | Missing auth returns `401`, non-Pro users receive `403`, and missing `ANTHROPIC_API_KEY` / `PB_URL` returns a clear JSON error instead of crashing. |
+| `generate-room` | Validates the current PocketBase bearer token, verifies authoritative Pro entitlement, validates the generation payload, calls the configured AI provider, and returns a complete operator-ready escape-room JSON object. | Missing auth returns `401`, non-Pro users receive `403`, invalid payloads return `400` with field details, and missing `AI_PROVIDER`, provider API keys, or `PB_URL` returns clear JSON errors instead of crashing. |
 | `create-checkout-session` | Validates the current PocketBase bearer token server-side and creates a Stripe Checkout Session for the $97 one-time Pro Lifetime Access purchase. | Missing Stripe/PocketBase env vars or invalid auth returns clear JSON errors. The UI displays checkout failures. |
 | `stripe-webhook` | Receives `checkout.session.completed`, verifies Stripe's signature, and upgrades the PocketBase user to permanent Pro access. | Requires Stripe webhook signing and `PB_SUPERUSER_TOKEN` or fallback PocketBase superuser credentials. |
+
+### Local mock generation
+
+For local development or preview deployments that should not call a paid AI provider, set `AI_PROVIDER=mock`. The endpoint still validates the PocketBase bearer token and Pro entitlement before returning the sample room, so mock mode can be used to test authenticated Pro-only UI behavior without exposing or spending provider API keys.
 
 ## PocketBase Requirements
 

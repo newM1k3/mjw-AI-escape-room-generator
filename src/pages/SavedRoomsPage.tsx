@@ -147,7 +147,7 @@ export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, ch
                         </span>
                         <span className="flex items-center gap-1 text-slate-500 text-xs">
                           <Users size={11} />
-                          {room.content?.puzzles?.length || 0} puzzles
+                          {room.content?.puzzle_flow?.length || room.content?.puzzles?.length || 0} puzzles
                         </span>
                       </div>
                     </button>

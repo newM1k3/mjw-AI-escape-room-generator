@@ -31,8 +31,8 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  const handleGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setError('');
     setGeneratedRoom(null);
     setIsSaved(false);
@@ -175,8 +175,16 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
               />
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 space-y-3">
                   <p className="text-red-400 text-sm">{error}</p>
+                  <button
+                    type="button"
+                    onClick={() => void handleGenerate()}
+                    disabled={isGenerating || !form.theme.trim()}
+                    className="text-xs font-semibold text-red-200 hover:text-white underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    Retry generation
+                  </button>
                 </div>
               )}
 
@@ -188,7 +196,7 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
                 {isGenerating ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Generating...
+                    Designing room...
                   </>
                 ) : (
                   <>
@@ -200,7 +208,7 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
 
               {isGenerating && (
                 <p className="text-center text-slate-500 text-xs">
-                  AI is designing your room... this takes ~15 seconds
+                  Designing a practical, operator-ready puzzle flow. This can take 15–45 seconds depending on the configured AI provider.
                 </p>
               )}
             </form>
