@@ -2,6 +2,10 @@
 
 PuzzleFlow AI is a React/Vite application deployed on Netlify for generating premium escape-room puzzle flows. It uses PocketBase for authentication and saved rooms, Stripe for Pro checkout, and a server-side AI provider selected with `AI_PROVIDER` (`openai`, `gemini`, or `mock`) for room generation.
 
+## Release Readiness Documents
+
+Use the in-repo [QA checklist](QA_CHECKLIST.md) to validate the full logged-out, free-user, checkout, Pro-user, export, responsive, and direct-function bypass flows before release. Use the [launch checklist](LAUNCH_CHECKLIST.md) as the final production readiness gate for Netlify, Stripe, PocketBase, AI provider, domain, test purchase, and support-policy setup.
+
 ## Production Setup Checklist
 
 Before deploying to Netlify, configure the following environment variables in **Netlify Site Settings → Environment Variables**. Keep all server secrets out of frontend code and never prefix secrets with `VITE_`.
@@ -135,6 +139,7 @@ npm run lint
 npm run typecheck
 npm run build
 npx tsc --noEmit --moduleResolution bundler --module esnext --target esnext netlify/functions/*.ts
+QA_BASE_URL=https://YOUR_SITE.netlify.app npm run smoke:qa
 ```
 
-A successful build confirms the React/Vite frontend compiles and the Netlify Functions typecheck. Netlify Function runtime behavior still depends on the production environment variables listed above.
+A successful build confirms the React/Vite frontend compiles and the Netlify Functions typecheck. The smoke-test command checks the deployed app shell, SPA fallback, unsupported method handling, and unauthenticated function protection. Netlify Function runtime behavior still depends on the production environment variables listed above and the manual end-to-end flows in `QA_CHECKLIST.md`.
