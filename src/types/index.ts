@@ -18,6 +18,8 @@ export interface GeneratedRoom {
   title: string;
   theme: string;
   difficulty: string;
+  format?: string;
+  duration?: string;
   content: RoomContent;
   created: string;
   updated: string;
@@ -72,7 +74,7 @@ export interface RoomContent {
   red_herrings?: string[];
   production_notes?: string[];
   shopping_list?: string[];
-  staffing_notes?: string;
+  staffing_notes?: string | string[];
   reset_checklist?: string[];
   accessibility_notes?: string[];
   narrative?: LegacyNarrative;

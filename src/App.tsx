@@ -21,20 +21,30 @@ function AppShell() {
   const [checkoutBanner, setCheckoutBanner] = useState<CheckoutBanner | null>(null);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [isUnlockingPro, setIsUnlockingPro] = useState(false);
+  const [hasUnsavedGeneratedRoom, setHasUnsavedGeneratedRoom] = useState(false);
   const { user, logout, authToken, refreshUser, isPro } = useAuth();
 
   const checkoutError = checkoutBanner?.type === 'error' ? checkoutBanner.text : '';
 
-  const navigateTo = (page: Page) => {
+  const confirmDiscardUnsavedRoom = useCallback(() => {
+    if (!hasUnsavedGeneratedRoom) return true;
+    return window.confirm('Generated but not saved. Leave this page and discard the unsaved room?');
+  }, [hasUnsavedGeneratedRoom]);
+
+  const navigateTo = useCallback((page: Page) => {
+    if (page !== currentPage && !confirmDiscardUnsavedRoom()) return;
     setCheckoutBanner(null);
     setCurrentPage(page);
-  };
+    if (page !== 'generator') setHasUnsavedGeneratedRoom(false);
+  }, [confirmDiscardUnsavedRoom, currentPage]);
 
   const handleSafeSignOut = () => {
+    if (!confirmDiscardUnsavedRoom()) return;
     logout();
     setCheckoutBanner(null);
     setIsCheckoutLoading(false);
     setIsUnlockingPro(false);
+    setHasUnsavedGeneratedRoom(false);
     setCurrentPage('demo');
   };
 
@@ -191,6 +201,7 @@ function AppShell() {
               isUpgradeLoading={isCheckoutLoading}
               checkoutError={checkoutError}
               onNavigateLegal={navigateTo}
+              onUnsavedChange={setHasUnsavedGeneratedRoom}
             />
           )}
           {currentPage === 'saved' && (

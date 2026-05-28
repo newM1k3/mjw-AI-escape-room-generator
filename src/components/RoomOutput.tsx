@@ -2,9 +2,15 @@ import { useState } from 'react';
 import {
   BookOpen, Layers, AlertTriangle, Save, Download, ChevronDown, ChevronUp,
   Lightbulb, Package, Eye, Key, ArrowRight, CheckCircle, Loader2, ClipboardList,
-  ShoppingCart, Users, Accessibility, Wrench
+  ShoppingCart, Users, Accessibility, Wrench, Printer, FileJson, ClipboardCopy
 } from 'lucide-react';
-import type { RoomContent, RoomPuzzle } from '../types';
+import type { RoomContent } from '../types';
+import {
+  copyOperatorSummary,
+  downloadRoomJson,
+  downloadRoomMarkdown,
+  getRoomPuzzles,
+} from '../lib/roomExports';
 
 interface RoomOutputProps {
   room: RoomContent;
@@ -13,29 +19,12 @@ interface RoomOutputProps {
   isSaving?: boolean;
   isSaved?: boolean;
   showActions?: boolean;
+  savedLabel?: string;
 }
 
 function asList(value: string[] | string | undefined): string[] {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
-}
-
-function getPuzzles(room: RoomContent): RoomPuzzle[] {
-  if (room.puzzle_flow?.length) return room.puzzle_flow;
-
-  return (room.puzzles || []).map((puzzle, index) => ({
-    title: puzzle.name,
-    role_in_flow: index === 0 ? 'Opening puzzle' : 'Linked puzzle',
-    estimated_time: 'Not specified',
-    required_props: puzzle.props,
-    setup: puzzle.setup,
-    player_facing_clue: 'See setup notes.',
-    hint_ladder: [],
-    solution: puzzle.solution,
-    output: puzzle.output,
-    reset_notes: 'Reset according to operator notes.',
-    safety_or_ops_notes: 'No additional notes supplied.',
-  }));
 }
 
 function getStoryCards(room: RoomContent) {
@@ -59,7 +48,7 @@ function DetailList({ title, icon, items }: { title: string; icon: React.ReactNo
   if (!items.length) return null;
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+    <section className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden operator-section">
       <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
         {icon}
         <h2 className="text-white font-semibold">{title}</h2>
@@ -74,13 +63,14 @@ function DetailList({ title, icon, items }: { title: string; icon: React.ReactNo
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
-export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, showActions = true }: RoomOutputProps) {
+export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, showActions = true, savedLabel = 'Saved' }: RoomOutputProps) {
   const [expandedPuzzles, setExpandedPuzzles] = useState<Set<number>>(new Set([0]));
-  const puzzles = getPuzzles(room);
+  const [copyStatus, setCopyStatus] = useState('');
+  const puzzles = getRoomPuzzles(room);
   const redHerrings = room.red_herrings || room.redHerrings || [];
   const storyCards = getStoryCards(room);
 
@@ -96,12 +86,32 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
     });
   };
 
+  const handlePrint = () => {
+    if (onExport) {
+      onExport();
+      return;
+    }
+    window.print();
+  };
+
+  const handleCopySummary = async () => {
+    setCopyStatus('');
+    try {
+      await copyOperatorSummary(room);
+      setCopyStatus('Operator summary copied.');
+      window.setTimeout(() => setCopyStatus(''), 2500);
+    } catch (err) {
+      console.error('Copy failed', err);
+      setCopyStatus('Clipboard copy failed.');
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+    <div className="space-y-6 print-room-output">
+      <section className="bg-slate-800 border border-slate-700 rounded-2xl p-6 operator-section">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-cyan-400 text-xs font-semibold uppercase tracking-widest mb-2">Generated Room</p>
+            <p className="text-cyan-400 text-xs font-semibold uppercase tracking-widest mb-2">Operator Room Plan</p>
             <h1 className="text-3xl font-bold text-white">{room.title}</h1>
             {room.tagline && <p className="text-slate-300 mt-2 italic">{room.tagline}</p>}
             {(room.difficulty || room.players || room.duration || room.format) && (
@@ -115,12 +125,12 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
             )}
           </div>
           {showActions && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-2 flex-wrap no-print">
               {onSave && (
                 <button
                   onClick={onSave}
                   disabled={isSaving || isSaved}
-                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors border border-slate-600"
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-medium px-3 py-2 rounded-lg text-sm transition-colors border border-slate-600"
                 >
                   {isSaving ? (
                     <Loader2 size={14} className="animate-spin" />
@@ -129,31 +139,51 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
                   ) : (
                     <Save size={14} />
                   )}
-                  {isSaved ? 'Saved' : 'Save Room'}
+                  {isSaved ? savedLabel : 'Save Room'}
                 </button>
               )}
-              {onExport && (
-                <button
-                  onClick={onExport}
-                  className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-                >
-                  <Download size={14} />
-                  Export PDF
-                </button>
-              )}
+              <button
+                onClick={handleCopySummary}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium px-3 py-2 rounded-lg text-sm transition-colors border border-slate-600"
+              >
+                <ClipboardCopy size={14} />
+                Copy Summary
+              </button>
+              <button
+                onClick={() => downloadRoomMarkdown(room)}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium px-3 py-2 rounded-lg text-sm transition-colors border border-slate-600"
+              >
+                <Download size={14} />
+                Markdown
+              </button>
+              <button
+                onClick={() => downloadRoomJson(room)}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium px-3 py-2 rounded-lg text-sm transition-colors border border-slate-600"
+              >
+                <FileJson size={14} />
+                JSON
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-3 py-2 rounded-lg text-sm transition-colors"
+              >
+                <Printer size={14} />
+                Print / PDF
+              </button>
             </div>
           )}
         </div>
+        {copyStatus && <p className="mt-3 text-xs text-cyan-300 no-print">{copyStatus}</p>}
         {room.operator_summary && (
           <div className="mt-5 bg-slate-900/70 border border-slate-700 rounded-xl px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">Operator Summary</p>
             <p className="text-sm text-slate-300 leading-relaxed">{room.operator_summary}</p>
           </div>
         )}
-      </div>
+      </section>
 
       {storyCards.length > 0 && (
-        <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+        <section className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden operator-section">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
             <BookOpen size={18} className="text-cyan-400" />
             <h2 className="text-white font-semibold">The Narrative Arc</h2>
@@ -166,23 +196,23 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="space-y-3">
+      <section className="space-y-3 operator-section">
         <div className="flex items-center gap-3 mb-4">
           <Layers size={18} className="text-cyan-400" />
-          <h2 className="text-white font-semibold text-lg">The Puzzle Flow</h2>
+          <h2 className="text-white font-semibold text-lg">Puzzle Flow</h2>
           <span className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full">{puzzles.length} puzzles</span>
         </div>
 
         {puzzles.map((puzzle, index) => {
           const isExpanded = expandedPuzzles.has(index);
           return (
-            <div key={index} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+            <div key={index} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden puzzle-card">
               <button
                 onClick={() => togglePuzzle(index)}
-                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-750 transition-colors text-left"
+                className="w-full flex items-center gap-4 px-5 py-4 hover:bg-slate-750 transition-colors text-left no-print-keep"
               >
                 <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/20 rounded-lg flex items-center justify-center shrink-0">
                   <span className="text-cyan-400 text-sm font-bold">{index + 1}</span>
@@ -203,8 +233,7 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
                 )}
               </button>
 
-              {isExpanded && (
-                <div className="border-t border-slate-700 grid md:grid-cols-2 gap-px bg-slate-700">
+              <div className={`${isExpanded ? '' : 'hidden print:grid'} border-t border-slate-700 grid md:grid-cols-2 gap-px bg-slate-700`}>
                   <div className="bg-slate-800 px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Package size={13} className="text-amber-400" />
@@ -222,7 +251,7 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
                   <div className="bg-slate-800 px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Eye size={13} className="text-blue-400" />
-                      <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">The Setup</p>
+                      <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">Setup</p>
                     </div>
                     <p className="text-sm text-slate-300 leading-relaxed">{puzzle.setup}</p>
                   </div>
@@ -236,14 +265,14 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
                   <div className="bg-slate-800 px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Lightbulb size={13} className="text-green-400" />
-                      <p className="text-green-400 text-xs font-semibold uppercase tracking-wider">The Solution</p>
+                      <p className="text-green-400 text-xs font-semibold uppercase tracking-wider">Solution</p>
                     </div>
                     <p className="text-sm text-slate-300 leading-relaxed">{puzzle.solution}</p>
                   </div>
                   <div className="bg-slate-800 px-5 py-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Key size={13} className="text-cyan-400" />
-                      <p className="text-cyan-400 text-xs font-semibold uppercase tracking-wider">The Output</p>
+                      <p className="text-cyan-400 text-xs font-semibold uppercase tracking-wider">Output</p>
                     </div>
                     <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg px-3 py-2">
                       <p className="text-sm text-cyan-300 font-medium">{puzzle.output}</p>
@@ -270,34 +299,35 @@ export default function RoomOutput({ room, onSave, onExport, isSaving, isSaved, 
                     </div>
                   )}
                 </div>
-              )}
             </div>
           );
         })}
-      </div>
+      </section>
 
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
-          <AlertTriangle size={18} className="text-red-400" />
-          <h2 className="text-white font-semibold">Red Herrings & Distractions</h2>
-        </div>
-        <div className="px-6 py-5 space-y-3">
-          {redHerrings.map((herring, index) => (
-            <div key={index} className="flex items-start gap-3">
-              <div className="w-6 h-6 bg-red-500/10 border border-red-500/20 rounded-md flex items-center justify-center shrink-0 mt-0.5">
-                <span className="text-red-400 text-xs font-bold">{index + 1}</span>
+      {redHerrings.length > 0 && (
+        <section className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden operator-section">
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-700">
+            <AlertTriangle size={18} className="text-red-400" />
+            <h2 className="text-white font-semibold">Red Herrings & Distractions</h2>
+          </div>
+          <div className="px-6 py-5 space-y-3">
+            {redHerrings.map((herring, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <div className="w-6 h-6 bg-red-500/10 border border-red-500/20 rounded-md flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-red-400 text-xs font-bold">{index + 1}</span>
+                </div>
+                <p className="text-slate-300 text-sm leading-relaxed">{herring}</p>
               </div>
-              <p className="text-slate-300 text-sm leading-relaxed">{herring}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <DetailList title="Production Notes" icon={<Wrench size={18} className="text-amber-400" />} items={asList(room.production_notes)} />
       <DetailList title="Shopping List" icon={<ShoppingCart size={18} className="text-cyan-400" />} items={asList(room.shopping_list)} />
       <DetailList title="Reset Checklist" icon={<ClipboardList size={18} className="text-green-400" />} items={asList(room.reset_checklist)} />
-      <DetailList title="Accessibility Notes" icon={<Accessibility size={18} className="text-violet-400" />} items={asList(room.accessibility_notes)} />
       <DetailList title="Staffing Notes" icon={<Users size={18} className="text-blue-400" />} items={asList(room.staffing_notes)} />
+      <DetailList title="Accessibility Notes" icon={<Accessibility size={18} className="text-violet-400" />} items={asList(room.accessibility_notes)} />
     </div>
   );
 }

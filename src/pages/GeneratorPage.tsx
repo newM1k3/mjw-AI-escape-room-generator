@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Wand2, Loader2, ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Wand2, Loader2, ChevronDown, AlertTriangle } from 'lucide-react';
 import TierGate from '../components/TierGate';
 import RoomOutput from '../components/RoomOutput';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ interface GeneratorPageProps {
   isUpgradeLoading?: boolean;
   checkoutError?: string;
   onNavigateLegal?: (page: 'terms' | 'privacy') => void;
+  onUnsavedChange?: (hasUnsavedRoom: boolean) => void;
 }
 
 const defaultForm: GeneratorFormData = {
@@ -21,7 +22,13 @@ const defaultForm: GeneratorFormData = {
   duration: '60 mins',
 };
 
-export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '', onNavigateLegal }: GeneratorPageProps) {
+export default function GeneratorPage({
+  onUpgrade,
+  isUpgradeLoading = false,
+  checkoutError = '',
+  onNavigateLegal,
+  onUnsavedChange,
+}: GeneratorPageProps) {
   const { user, authToken } = useAuth();
   const [form, setForm] = useState<GeneratorFormData>(defaultForm);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -29,13 +36,31 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedRoomId, setSavedRoomId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState('');
+  const hasUnsavedRoom = Boolean(generatedRoom && !isSaved);
+
+  useEffect(() => {
+    onUnsavedChange?.(hasUnsavedRoom);
+  }, [hasUnsavedRoom, onUnsavedChange]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedRoom) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedRoom]);
 
   const handleGenerate = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError('');
     setGeneratedRoom(null);
     setIsSaved(false);
+    setSavedRoomId(null);
     setSaveError('');
     setIsGenerating(true);
 
@@ -59,7 +84,14 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
       }
 
       const data = await res.json();
-      setGeneratedRoom(data);
+      setGeneratedRoom({
+        ...data,
+        theme: data.theme || form.theme,
+        difficulty: data.difficulty || form.difficulty,
+        players: data.players || form.players,
+        format: data.format || form.format,
+        duration: data.duration || form.duration,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -68,17 +100,20 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
   };
 
   const handleSave = async () => {
-    if (!generatedRoom || !user) return;
+    if (!generatedRoom || !user || isSaved || savedRoomId) return;
     setSaveError('');
     setIsSaving(true);
     try {
-      await pb.collection('generated_rooms').create({
+      const record = await pb.collection('generated_rooms').create({
         user: user.id,
         title: generatedRoom.title,
-        theme: form.theme,
-        difficulty: form.difficulty,
+        theme: generatedRoom.theme || form.theme,
+        difficulty: generatedRoom.difficulty || form.difficulty,
+        format: generatedRoom.format || form.format,
+        duration: generatedRoom.duration || form.duration,
         content: generatedRoom,
       });
+      setSavedRoomId(record.id);
       setIsSaved(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Save failed. Please try again.';
@@ -123,14 +158,14 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-8 no-print">
         <h1 className="text-3xl font-bold text-white mb-2">New Room</h1>
         <p className="text-slate-400">Configure your escape room parameters and generate a complete puzzle flow.</p>
       </div>
 
       <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError} onNavigateLegal={onNavigateLegal}>
         <div className="grid lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 no-print">
             <form onSubmit={handleGenerate} className="bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 sticky top-6">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">
@@ -214,12 +249,25 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
             </form>
           </div>
 
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3 print:lg:col-span-5">
             {generatedRoom ? (
               <>
+                {hasUnsavedRoom && (
+                  <div className="mb-4 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 no-print">
+                    <AlertTriangle size={17} className="text-amber-300 mt-0.5 shrink-0" />
+                    <p className="text-sm text-amber-100">
+                      Generated but not saved. Save this room before leaving if you want it in My Rooms.
+                    </p>
+                  </div>
+                )}
                 {saveError && (
-                  <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+                  <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 no-print">
                     <p className="text-sm text-red-300">{saveError}</p>
+                  </div>
+                )}
+                {isSaved && (
+                  <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 no-print">
+                    <p className="text-sm text-emerald-300">Saved to My Rooms. The save button is locked to prevent an accidental duplicate.</p>
                   </div>
                 )}
                 <RoomOutput
@@ -228,10 +276,11 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
                   onExport={handleExport}
                   isSaving={isSaving}
                   isSaved={isSaved}
+                  savedLabel="Saved"
                 />
               </>
             ) : (
-              <div className="bg-slate-800 border border-slate-700 border-dashed rounded-2xl flex flex-col items-center justify-center py-24 px-6 text-center h-full min-h-80">
+              <div className="bg-slate-800 border border-slate-700 border-dashed rounded-2xl flex flex-col items-center justify-center py-24 px-6 text-center h-full min-h-80 no-print">
                 <div className="w-14 h-14 bg-slate-700 rounded-xl flex items-center justify-center mb-5">
                   <Wand2 size={24} className="text-slate-500" />
                 </div>

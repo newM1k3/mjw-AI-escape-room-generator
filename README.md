@@ -39,9 +39,27 @@ For local development or preview deployments that should not call a paid AI prov
 
 ## PocketBase Requirements
 
-PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`. For the Stripe lifetime Pro flow, add the entitlement fields `role` (text), `is_pro` (boolean), `stripe_customer_id` (text), `stripe_checkout_session_id` (text), and `pro_purchased_at` (date/text compatible with an ISO timestamp). The webhook first attempts to write the full entitlement payload and falls back to legacy `tier` plus `stripe_customer_id` if the newer fields are not present, but the full schema is recommended before production. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. The app also expects a `generated_rooms` collection with fields for `user`, `title`, `theme`, `difficulty`, and `content`. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
+PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`. For the Stripe lifetime Pro flow, add the entitlement fields `role` (text), `is_pro` (boolean), `stripe_customer_id` (text), `stripe_checkout_session_id` (text), and `pro_purchased_at` (date/text compatible with an ISO timestamp). The webhook first attempts to write the full entitlement payload and falls back to legacy `tier` plus `stripe_customer_id` if the newer fields are not present, but the full schema is recommended before production. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
 
-Saved-room create/list/view/delete operations currently use authenticated client-side PocketBase calls, so the `generated_rooms` collection rules must enforce owner and entitlement checks directly in PocketBase. Recommended production rules are:
+### `generated_rooms` collection schema
+
+Create or confirm a regular PocketBase collection named `generated_rooms`. The frontend writes generated room records directly with the authenticated PocketBase SDK, so these fields and owner rules are part of the production security boundary.
+
+| Field | Type | Required | Notes |
+|---|---|---:|---|
+| `user` | Relation to `users` | Yes | Single relation to the owner account. |
+| `title` | Text | Yes | Display title for My Rooms search and cards. |
+| `theme` | Text | Yes | Original or generated theme summary. |
+| `difficulty` | Text | Yes | `Beginner`, `Intermediate`, `Expert`, or `Enthusiast-Only`. |
+| `format` | Text | Recommended | `Single Room`, `Multi-Room`, `Linear`, or `Non-Linear`; used for filtering. |
+| `duration` | Text | Recommended | `45 mins`, `60 mins`, or `90 mins`; shown on library cards and exports. |
+| `content` | JSON | Yes | Full generated operator plan returned by `generate-room`. |
+| `created` | Date | Built-in | PocketBase system field used for sorting. |
+| `updated` | Date | Built-in | PocketBase system field used for freshness/debugging. |
+
+My Rooms supports an empty state, title/theme search, difficulty and format filters, detail view, duplicate creation, confirmed delete, browser print/PDF, Markdown download, JSON download, and clipboard copy for the operator summary. New Room displays a visible save confirmation after successful writes, disables repeat saves for the same generated output to prevent accidental duplicates, and warns users before leaving an unsaved generated room.
+
+Saved-room create/list/view/update/delete operations currently use authenticated client-side PocketBase calls, so the `generated_rooms` collection rules must enforce owner and entitlement checks directly in PocketBase. Recommended production rules are:
 
 | Rule | Recommended expression |
 |---|---|

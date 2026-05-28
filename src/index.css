@@ -25,32 +25,86 @@
 }
 
 @media print {
+  @page {
+    margin: 0.55in;
+  }
+
   nav,
   aside,
   button,
-  .no-print {
+  .no-print,
+  [data-paywall],
+  [data-sidebar] {
     display: none !important;
   }
 
+  html,
   body {
-    background: white;
-    color: black;
+    background: white !important;
+    color: #0f172a !important;
   }
 
+  main,
+  .print-room-output {
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .print-room-output {
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  .bg-slate-700,
   .bg-slate-800,
   .bg-slate-900,
-  .bg-slate-950 {
+  .bg-slate-950,
+  .bg-slate-900\/70 {
     background: white !important;
   }
 
   .text-white,
   .text-slate-300,
-  .text-slate-400 {
+  .text-slate-400,
+  .text-slate-500,
+  .text-cyan-300,
+  .text-cyan-400,
+  .text-amber-400,
+  .text-blue-400,
+  .text-violet-400,
+  .text-green-400,
+  .text-red-400 {
     color: #1e293b !important;
   }
 
+  .border-slate-600,
   .border-slate-700,
-  .border-slate-800 {
-    border-color: #e2e8f0 !important;
+  .border-slate-800,
+  .border-cyan-500\/20,
+  .border-red-500\/20 {
+    border-color: #cbd5e1 !important;
+  }
+
+  .rounded-2xl,
+  .rounded-xl,
+  .rounded-lg {
+    border-radius: 0.25rem !important;
+  }
+
+  .operator-section,
+  .puzzle-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .puzzle-card > div {
+    display: grid !important;
+  }
+
+  .shadow,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
   }
 }
