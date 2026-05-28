@@ -56,7 +56,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
           <button
             key={item.id}
             onClick={() => navigateAndCloseMobile(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${
               currentPage === item.id
                 ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -74,7 +74,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
           {user && (
             <button
               onClick={() => navigateAndCloseMobile('account')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${
                 currentPage === 'account'
                   ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
                   : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
@@ -87,7 +87,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
           )}
           <button
             onClick={() => navigateAndCloseMobile('terms')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${
               currentPage === 'terms' ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
             }`}
           >
@@ -95,7 +95,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
           </button>
           <button
             onClick={() => navigateAndCloseMobile('privacy')}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400/60 ${
               currentPage === 'privacy' ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
             }`}
           >
@@ -108,7 +108,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
         {!isPro && (
           <button
             onClick={onUpgrade}
-            className="w-full flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-semibold px-3 py-2.5 rounded-lg text-sm transition-all"
+            className="w-full flex items-center justify-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-semibold px-3 py-2.5 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-amber-300/70"
           >
             <Zap size={14} />
             Upgrade to Pro — $97
@@ -119,12 +119,12 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
           <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-3">
             <button
               onClick={() => navigateAndCloseMobile('account')}
-              className="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center shrink-0 transition-colors"
+              className="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
               title="View account"
             >
               <User size={13} className="text-slate-400" />
             </button>
-            <button onClick={() => navigateAndCloseMobile('account')} className="flex-1 min-w-0 text-left">
+            <button onClick={() => navigateAndCloseMobile('account')} className="flex-1 min-w-0 rounded text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/60">
               <p className="text-white text-xs font-medium truncate">{user.name || user.email}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 {isPro ? (
@@ -138,7 +138,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
             </button>
             <button
               onClick={onSignOut}
-              className="text-slate-600 hover:text-slate-400 transition-colors"
+              className="rounded text-slate-600 hover:text-slate-400 transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
               title="Sign out"
             >
               <LogOut size={14} />
@@ -147,7 +147,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
         ) : (
           <button
             onClick={() => setShowAuth(true)}
-            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium px-3 py-2.5 rounded-lg text-sm transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium px-3 py-2.5 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400/60"
           >
             <User size={14} />
             Sign In
@@ -160,8 +160,11 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
   return (
     <>
       <button
-        className="lg:hidden fixed top-4 left-4 z-40 bg-slate-800 border border-slate-700 text-white p-2 rounded-lg"
+        className="lg:hidden fixed top-4 left-4 z-40 bg-slate-800 border border-slate-700 text-white p-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/70"
         onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={mobileOpen}
+        aria-controls="primary-sidebar"
       >
         {mobileOpen ? <X size={18} /> : <Menu size={18} />}
       </button>
@@ -170,10 +173,11 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
         <div
           className="lg:hidden fixed inset-0 bg-black/60 z-30"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
-      <aside className={`fixed top-0 left-0 h-full w-60 bg-slate-900 border-r border-slate-800 z-40 transition-transform lg:translate-x-0 ${
+      <aside id="primary-sidebar" className={`fixed top-0 left-0 h-full w-60 bg-slate-900 border-r border-slate-800 z-40 transition-transform lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <SidebarContent />

@@ -133,16 +133,19 @@ export default function GeneratorPage({
     value,
     onChange,
     options,
+    id,
   }: {
     label: string;
     value: string;
     onChange: (v: string) => void;
     options: string[];
+    id: string;
   }) => (
     <div>
-      <label className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-sm font-medium text-slate-300 mb-1.5">{label}</label>
       <div className="relative">
         <select
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full appearance-none bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors pr-9"
@@ -168,15 +171,18 @@ export default function GeneratorPage({
           <div className="lg:col-span-2 no-print">
             <form onSubmit={handleGenerate} className="bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 sticky top-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  <label htmlFor="room-theme" className="block text-sm font-medium text-slate-300 mb-1.5">
                   Theme / Story
                 </label>
                 <textarea
+                  id="room-theme"
                   value={form.theme}
                   onChange={(e) => setForm({ ...form, theme: e.target.value })}
                   placeholder="e.g. 1920s bank heist — the vault is rigged to explode. Players are rival thieves who must cooperate to escape."
                   required
                   rows={4}
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={error ? 'generation-error' : undefined}
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors resize-none"
                 />
               </div>
@@ -186,6 +192,7 @@ export default function GeneratorPage({
                 value={form.difficulty}
                 onChange={(v) => setForm({ ...form, difficulty: v as GeneratorFormData['difficulty'] })}
                 options={['Beginner', 'Intermediate', 'Expert', 'Enthusiast-Only']}
+                id="room-difficulty"
               />
 
               <SelectField
@@ -193,6 +200,7 @@ export default function GeneratorPage({
                 value={form.players}
                 onChange={(v) => setForm({ ...form, players: v as GeneratorFormData['players'] })}
                 options={['2-4', '4-6', '6-8', '8+']}
+                id="room-players"
               />
 
               <SelectField
@@ -200,6 +208,7 @@ export default function GeneratorPage({
                 value={form.format}
                 onChange={(v) => setForm({ ...form, format: v as GeneratorFormData['format'] })}
                 options={['Single Room', 'Multi-Room', 'Linear', 'Non-Linear']}
+                id="room-format"
               />
 
               <SelectField
@@ -207,16 +216,17 @@ export default function GeneratorPage({
                 value={form.duration}
                 onChange={(v) => setForm({ ...form, duration: v as GeneratorFormData['duration'] })}
                 options={['45 mins', '60 mins', '90 mins']}
+                id="room-duration"
               />
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 space-y-3">
+                <div id="generation-error" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 space-y-3" role="alert">
                   <p className="text-red-400 text-sm">{error}</p>
                   <button
                     type="button"
                     onClick={() => void handleGenerate()}
                     disabled={isGenerating || !form.theme.trim()}
-                    className="text-xs font-semibold text-red-200 hover:text-white underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="text-xs font-semibold text-red-200 hover:text-white underline underline-offset-4 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-300/70 rounded"
                   >
                     Retry generation
                   </button>
@@ -226,7 +236,7 @@ export default function GeneratorPage({
               <button
                 type="submit"
                 disabled={isGenerating || !form.theme.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 font-bold py-3 rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed text-slate-900 font-bold py-3 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-800"
               >
                 {isGenerating ? (
                   <>

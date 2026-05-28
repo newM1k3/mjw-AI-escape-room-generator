@@ -8,9 +8,10 @@ import DemoPage from './pages/DemoPage';
 import AccountPage from './pages/AccountPage';
 import LegalPage from './pages/LegalPage';
 import LandingPage from './pages/LandingPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import { describeEntitlementDelay } from './lib/entitlements';
 
-export type Page = 'generator' | 'saved' | 'demo' | 'account' | 'terms' | 'privacy';
+export type Page = 'generator' | 'saved' | 'demo' | 'account' | 'terms' | 'privacy' | 'not-found';
 
 type CheckoutBanner = {
   type: 'error' | 'info' | 'success';
@@ -29,6 +30,7 @@ const pagePaths: Record<Page, string> = {
   account: '/app/account',
   terms: '/terms',
   privacy: '/privacy',
+  'not-found': '/404',
 };
 
 function resolveRoute(pathname: string): RouteState {
@@ -39,7 +41,7 @@ function resolveRoute(pathname: string): RouteState {
   if (pathname === '/demo') return { isLanding: false, page: 'demo' };
   if (pathname === '/terms') return { isLanding: false, page: 'terms' };
   if (pathname === '/privacy') return { isLanding: false, page: 'privacy' };
-  return { isLanding: false, page: 'generator' };
+  return { isLanding: false, page: 'not-found' };
 }
 
 function pushPath(path: string) {
@@ -308,6 +310,22 @@ function AppShell() {
           )}
           {currentPage === 'terms' && <LegalPage type="terms" />}
           {currentPage === 'privacy' && <LegalPage type="privacy" />}
+          {currentPage === 'not-found' && (
+            <section className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 text-center" aria-labelledby="not-found-title">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">404</p>
+              <h1 id="not-found-title" className="mt-3 text-3xl font-bold text-white">Page not found</h1>
+              <p className="mx-auto mt-3 max-w-2xl leading-7 text-slate-300">
+                The route you opened is not part of PuzzleFlow AI. Use the button below to return to the room generator.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigateTo('generator')}
+                className="mt-6 rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 transition-colors hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
+              >
+                Go to New Room
+              </button>
+            </section>
+          )}
         </div>
       </main>
     </div>
@@ -316,8 +334,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppShell />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

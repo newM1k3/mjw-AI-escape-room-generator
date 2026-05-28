@@ -18,11 +18,25 @@ Before deploying to Netlify, configure the following environment variables in **
 | `STRIPE_PRICE_ID_PRO` | Netlify Functions | Yes | Stripe one-time price ID for the $97 PuzzleFlow AI Pro Lifetime Access product. |
 | `STRIPE_WEBHOOK_SECRET` | Netlify Functions | Yes | Stripe webhook signing secret for the Netlify webhook endpoint. |
 | `PB_URL` | Netlify Functions | Yes | Server-only PocketBase URL used by the Stripe webhook to grant Pro access. Usually the same URL as `VITE_POCKETBASE_URL`, but intentionally named separately to keep frontend and server contracts clear. |
-| `PB_SUPERUSER_TOKEN` | Netlify Functions | Recommended | Preferred server-only PocketBase superuser token used by the Stripe webhook to grant Pro access without storing a password. |
-| `PB_ADMIN_EMAIL` | Netlify Functions | Fallback | Server-only PocketBase superuser email used only if `PB_SUPERUSER_TOKEN` is not configured. |
-| `PB_ADMIN_PASSWORD` | Netlify Functions | Fallback | Server-only PocketBase superuser password used only if `PB_SUPERUSER_TOKEN` is not configured. |
-| `APP_BASE_URL` | Netlify Functions/build | Yes | Canonical production URL used for Stripe success/cancel redirects and generated `sitemap.xml`/`robots.txt`, for example `https://your-site.netlify.app` or a custom domain. |
+| `PB_SUPERUSER_TOKEN` | Netlify Functions | Yes | Server-only PocketBase superuser token used by the Stripe webhook to grant Pro access and by `generate-room` to maintain per-user cooldown records. Do not expose it with a `VITE_` prefix. |
+| `GENERATION_COOLDOWN_SECONDS` | Netlify Functions | Optional | Per-user abuse guardrail for `generate-room`; defaults to `30`, must be at least `1`, and is capped at `300` seconds. |
+| `APP_BASE_URL` | Netlify Functions/build | Yes | Canonical production URL used for Stripe success/cancel redirects, origin-aware CORS, and generated `sitemap.xml`/`robots.txt`, for example `https://your-site.netlify.app` or a custom domain. |
 | `VITE_APP_BASE_URL` | Frontend/build | Recommended | Public canonical URL fallback for landing-page canonical metadata when `APP_BASE_URL` is not available to the browser. |
+
+## Production Security Hardening
+
+Netlify security headers are configured in `netlify.toml`. The policy sets `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy` that denies camera, microphone, and geolocation, and a Content Security Policy that limits scripts, fonts, frames, form posts, and API connections to the app itself, the configured PocketBase production origin, Stripe Checkout/Stripe.js, and Google Fonts. If the inline JSON-LD block in `index.html` changes, run `node scripts/compute-jsonld-csp-hash.cjs` and update the CSP hash in `netlify.toml` before deploying.
+
+The serverless response helpers use origin-aware CORS headers derived from `APP_BASE_URL`, `VITE_APP_BASE_URL`, and Netlify deploy URL variables, with localhost allowed only for development. Sensitive authenticated functions should not use wildcard origins. Function logs are intentionally limited to operational status, user identifiers, provider names, and product names; they should not print API keys, bearer tokens, Stripe secret values, full checkout session identifiers, payment details, or raw authorization headers.
+
+| Control | Production behavior |
+|---|---|
+| Security headers | Defined globally in `netlify.toml` for all routes and built assets. |
+| SPA fallback | Unknown browser routes are rewritten to `index.html`, and React renders a dedicated 404 screen for unsupported in-app pages. |
+| Frontend secrets | Only `VITE_` values are bundled into the browser. Provider keys, Stripe secret keys, webhook secrets, and PocketBase superuser tokens must remain server-only Netlify environment variables. |
+| Function methods | Each Netlify Function validates its HTTP method and returns `405` with an `Allow` header for unsupported methods. |
+| Authenticated endpoints | `generate-room` and `create-checkout-session` require a valid PocketBase bearer token and reject missing or invalid credentials. |
+| Abuse guardrail | `generate-room` enforces a PocketBase-backed per-user cooldown and returns `429` plus retry timing when the user submits too quickly. |
 
 ## Netlify Functions
 
@@ -32,9 +46,9 @@ The app expects three Netlify Functions under `netlify/functions`.
 
 | Function | Purpose | Notes |
 |---|---|---|
-| `generate-room` | Validates the current PocketBase bearer token, verifies authoritative Pro entitlement, validates the generation payload, calls the configured AI provider, and returns a complete operator-ready escape-room JSON object. | Missing auth returns `401`, non-Pro users receive `403`, invalid payloads return `400` with field details, and missing `AI_PROVIDER`, provider API keys, or `PB_URL` returns clear JSON errors instead of crashing. |
+| `generate-room` | Validates the current PocketBase bearer token, verifies authoritative Pro entitlement, validates the generation payload, enforces a per-user cooldown, calls the configured AI provider, and returns a complete operator-ready escape-room JSON object. | Missing auth returns `401`, non-Pro users receive `403`, invalid payloads return `400` with field details, cooldown violations return `429`, and missing `AI_PROVIDER`, provider API keys, `PB_URL`, or `PB_SUPERUSER_TOKEN` returns clear JSON errors instead of crashing. |
 | `create-checkout-session` | Validates the current PocketBase bearer token server-side and creates a Stripe Checkout Session for the $97 one-time Pro Lifetime Access purchase. | Missing Stripe/PocketBase env vars or invalid auth returns clear JSON errors. The UI displays checkout failures. |
-| `stripe-webhook` | Receives `checkout.session.completed`, verifies Stripe's signature, and upgrades the PocketBase user to permanent Pro access. | Requires Stripe webhook signing and `PB_SUPERUSER_TOKEN` or fallback PocketBase superuser credentials. |
+| `stripe-webhook` | Receives `checkout.session.completed`, verifies Stripe's signature, and upgrades the PocketBase user to permanent Pro access. | Requires Stripe webhook signing and `PB_SUPERUSER_TOKEN`; legacy PocketBase admin email/password fallback is intentionally not used in production. |
 
 ### Local mock generation
 
@@ -42,7 +56,7 @@ For local development or preview deployments that should not call a paid AI prov
 
 ## PocketBase Requirements
 
-PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`. For the Stripe lifetime Pro flow, add the entitlement fields `role` (text), `is_pro` (boolean), `stripe_customer_id` (text), `stripe_checkout_session_id` (text), and `pro_purchased_at` (date/text compatible with an ISO timestamp). The webhook first attempts to write the full entitlement payload and falls back to legacy `tier` plus `stripe_customer_id` if the newer fields are not present, but the full schema is recommended before production. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
+PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`. For the Stripe lifetime Pro flow, add the entitlement fields `role` (text), `is_pro` (boolean), `stripe_customer_id` (text), `stripe_checkout_session_id` (text), and `pro_purchased_at` (date/text compatible with an ISO timestamp). The webhook first attempts to write the full entitlement payload and falls back to legacy `tier` plus `stripe_customer_id` if the newer fields are not present, but the full schema is recommended before production. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. For production, configure `PB_SUPERUSER_TOKEN` in Netlify and do not rely on PocketBase admin email/password credentials in serverless functions.
 
 ### `generated_rooms` collection schema
 
@@ -73,6 +87,19 @@ Saved-room create/list/view/update/delete operations currently use authenticated
 | Delete | `@request.auth.id != "" && user = @request.auth.id && (@request.auth.role = "pro" || @request.auth.is_pro = true || @request.auth.tier = "pro")` |
 
 These rules prevent one user from reading or deleting another user's saved rooms and prevent free accounts from creating or accessing saved generated-room records even if they bypass the frontend gate.
+
+### `generation_cooldowns` collection schema
+
+Create or confirm a regular PocketBase collection named `generation_cooldowns`. This collection supports the server-side abuse guardrail in `generate-room`; it is written by Netlify Functions using `PB_SUPERUSER_TOKEN`, not by browser clients.
+
+| Field | Type | Required | Notes |
+|---|---|---:|---|
+| `user_id` | Text | Yes | PocketBase user ID used as the cooldown key. Add a unique index if your PocketBase plan/schema workflow supports it. |
+| `last_generated_at` | Date/Text | Yes | ISO timestamp of the user's latest successful generation attempt. |
+| `created` | Date | Built-in | PocketBase system field. |
+| `updated` | Date | Built-in | PocketBase system field. |
+
+For production, deny public list/view/create/update/delete access to this collection and allow writes only through the server-side superuser token. The function catches an absent cooldown record, creates it on first generation, updates it after subsequent allowed generations, and returns `429` with retry guidance when the configured cooldown window has not elapsed.
 
 Password reset uses PocketBase's built-in `requestPasswordReset` flow. Before public launch, configure PocketBase mail settings, set the correct application URL in PocketBase, and test the reset email end-to-end. If PocketBase email delivery is not configured, the app will show a friendly support-oriented message instead of leaving the user stuck.
 

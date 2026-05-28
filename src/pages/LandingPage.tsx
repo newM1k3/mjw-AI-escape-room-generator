@@ -184,7 +184,7 @@ export default function LandingPage({ onNavigate, onNavigateApp, onUpgrade, isUp
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
       <header className="relative z-10 border-b border-white/10 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <button onClick={onNavigateApp} className="flex items-center gap-3 text-left" aria-label="Open PuzzleFlow AI app">
+          <button onClick={onNavigateApp} className="flex items-center gap-3 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/70" aria-label="Open PuzzleFlow AI app">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20">
               <Wand2 size={20} />
             </span>
@@ -195,15 +195,15 @@ export default function LandingPage({ onNavigate, onNavigateApp, onUpgrade, isUp
           </button>
 
           <nav className="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-            <a href="#features" className="hover:text-white">Features</a>
-            <a href="#demo" className="hover:text-white">Demo</a>
-            <a href="#pricing" className="hover:text-white">Pricing</a>
-            <a href="#faq" className="hover:text-white">FAQ</a>
+            <a href="#features" className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Features</a>
+            <a href="#demo" className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Demo</a>
+            <a href="#pricing" className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Pricing</a>
+            <a href="#faq" className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">FAQ</a>
           </nav>
 
           <button
             onClick={onNavigateApp}
-            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-cyan-400 hover:text-cyan-200"
+            className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-cyan-400 hover:text-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-400/70"
           >
             Open App
           </button>
@@ -227,14 +227,14 @@ export default function LandingPage({ onNavigate, onNavigateApp, onUpgrade, isUp
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <button
                   onClick={() => onNavigate('demo')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition-colors hover:bg-cyan-300"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 py-3 font-bold text-slate-950 shadow-lg shadow-cyan-500/20 transition-colors hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-950"
                 >
                   <FlaskConical size={18} /> View Demo Room
                 </button>
                 <button
                   onClick={onUpgrade}
                   disabled={isUpgradeLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 font-bold text-amber-200 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 font-bold text-amber-200 transition-colors hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-amber-300/70"
                 >
                   <Zap size={18} /> {isUpgradeLoading ? 'Opening secure checkout...' : 'Unlock Pro — $97 Lifetime'}
                 </button>
@@ -371,15 +371,21 @@ export default function LandingPage({ onNavigate, onNavigateApp, onUpgrade, isUp
               <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">Questions operators ask before going Pro.</h2>
             </div>
             <div className="mt-10 space-y-4">
-              {faqs.map((faq) => (
-                <details key={faq.question} className="group rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-bold text-white">
-                    <span className="inline-flex items-center gap-3"><HelpCircle size={18} className="text-cyan-300" /> {faq.question}</span>
-                    <span className="text-cyan-300 transition-transform group-open:rotate-45">+</span>
-                  </summary>
-                  <p className="mt-4 leading-7 text-slate-300">{faq.answer}</p>
-                </details>
-              ))}
+              {faqs.map((faq, index) => {
+                const panelId = `faq-panel-${index}`;
+                return (
+                  <details key={faq.question} className="group rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+                    <summary
+                      className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg text-left font-bold text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70"
+                      aria-controls={panelId}
+                    >
+                      <span className="inline-flex items-center gap-3"><HelpCircle size={18} className="text-cyan-300" aria-hidden="true" /> {faq.question}</span>
+                      <span className="text-cyan-300 transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+                    </summary>
+                    <p id={panelId} className="mt-4 leading-7 text-slate-300">{faq.answer}</p>
+                  </details>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -389,9 +395,9 @@ export default function LandingPage({ onNavigate, onNavigateApp, onUpgrade, isUp
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 md:flex-row md:items-center">
           <p>© {new Date().getFullYear()} PuzzleFlow AI. Planning software for immersive-experience operators.</p>
           <div className="flex flex-wrap gap-4">
-            <button onClick={() => onNavigate('terms')} className="hover:text-white">Terms</button>
-            <button onClick={() => onNavigate('privacy')} className="hover:text-white">Privacy</button>
-            <a href={`mailto:${publicConfig.supportEmail}`} className="hover:text-white">Support: {publicConfig.supportEmail}</a>
+            <button onClick={() => onNavigate('terms')} className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Terms</button>
+            <button onClick={() => onNavigate('privacy')} className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Privacy</button>
+            <a href={`mailto:${publicConfig.supportEmail}`} className="rounded hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400/70">Support: {publicConfig.supportEmail}</a>
           </div>
         </div>
       </footer>

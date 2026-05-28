@@ -212,32 +212,38 @@ export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, ch
             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-5 no-print">
               <div className="grid md:grid-cols-4 gap-3">
                 <div className="md:col-span-2 relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <label htmlFor="saved-room-search" className="sr-only">Search saved rooms by title or theme</label>
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                   <input
+                    id="saved-room-search"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                     placeholder="Search title or theme..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
                   />
                 </div>
+                <label htmlFor="saved-room-difficulty-filter" className="sr-only">Filter saved rooms by difficulty</label>
                 <select
+                  id="saved-room-difficulty-filter"
                   value={difficultyFilter}
                   onChange={(event) => setDifficultyFilter(event.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
                 >
                   {difficultyOptions.map((option) => <option key={option} value={option}>{option === ALL ? 'All difficulties' : option}</option>)}
                 </select>
+                <label htmlFor="saved-room-format-filter" className="sr-only">Filter saved rooms by room format</label>
                 <select
+                  id="saved-room-format-filter"
                   value={formatFilter}
                   onChange={(event) => setFormatFilter(event.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
                 >
                   {formatOptions.map((option) => <option key={option} value={option}>{option === ALL ? 'All formats' : option}</option>)}
                 </select>
               </div>
               <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
                 <span>{filteredRooms.length} of {rooms.length} rooms shown</span>
-                <button onClick={() => void loadRooms()} className="flex items-center gap-1.5 hover:text-cyan-300">
+                <button onClick={() => void loadRooms()} className="flex items-center gap-1.5 rounded hover:text-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">
                   <RefreshCw size={12} />
                   Refresh library
                 </button>

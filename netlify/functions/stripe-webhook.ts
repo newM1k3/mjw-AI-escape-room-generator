@@ -1,7 +1,7 @@
 import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import PocketBase from 'pocketbase';
-import { errorResponse, jsonResponse, methodNotAllowed, requiredEnv } from './_utils';
+import { emptyOptionsResponse, errorResponse, jsonResponse, methodNotAllowed, requiredEnv } from './_utils';
 
 type ProEntitlementPayload = {
   tier: 'pro';
@@ -13,16 +13,8 @@ type ProEntitlementPayload = {
 };
 
 async function authenticatePocketBase(pb: PocketBase) {
-  const superuserToken = process.env.PB_SUPERUSER_TOKEN?.trim();
-
-  if (superuserToken) {
-    pb.authStore.save(superuserToken);
-    return;
-  }
-
-  const pocketBaseAdminEmail = requiredEnv('PB_ADMIN_EMAIL');
-  const pocketBaseAdminPassword = requiredEnv('PB_ADMIN_PASSWORD');
-  await pb.collection('_superusers').authWithPassword(pocketBaseAdminEmail, pocketBaseAdminPassword);
+  const superuserToken = requiredEnv('PB_SUPERUSER_TOKEN');
+  pb.authStore.save(superuserToken);
 }
 
 function getSessionCustomerId(session: Stripe.Checkout.Session): string {
@@ -32,7 +24,6 @@ function getSessionCustomerId(session: Stripe.Checkout.Session): string {
 
 function getRequiredSessionMetadata(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.pocketbase_user_id || session.client_reference_id || '';
-  const userEmail = session.metadata?.user_email || session.customer_details?.email || session.customer_email || '';
   const product = session.metadata?.product || '';
 
   if (!userId) {
@@ -47,7 +38,7 @@ function getRequiredSessionMetadata(session: Stripe.Checkout.Session) {
     throw error;
   }
 
-  return { userId, userEmail, product };
+  return { userId, product };
 }
 
 async function updatePocketBaseUserEntitlement(pb: PocketBase, userId: string, payload: ProEntitlementPayload) {
@@ -56,8 +47,7 @@ async function updatePocketBaseUserEntitlement(pb: PocketBase, userId: string, p
   } catch (err) {
     console.warn('Full Pro entitlement update failed; retrying with legacy-compatible fields.', {
       userId,
-      checkoutSessionId: payload.stripe_checkout_session_id,
-      reason: err instanceof Error ? err.message : 'Unknown PocketBase update error',
+      reason: err instanceof Error ? err.name : 'UnknownPocketBaseUpdateError',
     });
 
     return pb.collection('users').update(userId, {
@@ -68,8 +58,14 @@ async function updatePocketBaseUserEntitlement(pb: PocketBase, userId: string, p
 }
 
 export const handler: Handler = async (event) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin;
+
+  if (event.httpMethod === 'OPTIONS') {
+    return emptyOptionsResponse(requestOrigin);
+  }
+
   if (event.httpMethod !== 'POST') {
-    return methodNotAllowed(['POST']);
+    return methodNotAllowed(['POST', 'OPTIONS'], requestOrigin);
   }
 
   try {
@@ -80,32 +76,33 @@ export const handler: Handler = async (event) => {
     const sig = event.headers['stripe-signature'];
 
     if (!sig) {
-      return jsonResponse(400, { error: 'Missing stripe-signature header.' });
+      return jsonResponse(400, { error: 'Missing stripe-signature header.' }, {}, requestOrigin);
     }
 
     let stripeEvent: Stripe.Event;
     try {
       stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Webhook signature verification failed';
-      return jsonResponse(400, { error: `Webhook signature verification failed: ${msg}` });
+      console.warn('Stripe webhook signature verification failed.', {
+        reason: err instanceof Error ? err.name : 'UnknownStripeSignatureError',
+      });
+      return jsonResponse(400, { error: 'Webhook signature verification failed.' }, {}, requestOrigin);
     }
 
     if (stripeEvent.type !== 'checkout.session.completed') {
       console.info('Ignoring unsupported Stripe webhook event', { type: stripeEvent.type });
-      return jsonResponse(200, { received: true, ignored: true });
+      return jsonResponse(200, { received: true, ignored: true }, {}, requestOrigin);
     }
 
     const session = stripeEvent.data.object as Stripe.Checkout.Session;
-    const { userId, userEmail, product } = getRequiredSessionMetadata(session);
+    const { userId, product } = getRequiredSessionMetadata(session);
 
     if (session.payment_status && session.payment_status !== 'paid') {
       console.warn('Checkout session completed without paid status; entitlement not granted.', {
-        sessionId: session.id,
         userId,
         paymentStatus: session.payment_status,
       });
-      return jsonResponse(200, { received: true, ignored: true, reason: 'payment_not_paid' });
+      return jsonResponse(200, { received: true, ignored: true, reason: 'payment_not_paid' }, {}, requestOrigin);
     }
 
     const pb = new PocketBase(pocketBaseUrl);
@@ -125,13 +122,11 @@ export const handler: Handler = async (event) => {
 
     console.info('Granted PuzzleFlow Pro lifetime access from Stripe checkout.', {
       userId,
-      userEmail,
-      sessionId: session.id,
       product,
     });
 
-    return jsonResponse(200, { received: true, upgraded: true });
+    return jsonResponse(200, { received: true, upgraded: true }, {}, requestOrigin);
   } catch (err: unknown) {
-    return errorResponse(err, 'Stripe webhook processing failed.');
+    return errorResponse(err, 'Stripe webhook processing failed.', 500, requestOrigin);
   }
 };

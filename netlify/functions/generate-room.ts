@@ -8,6 +8,7 @@ const PLAYER_COUNTS = ['2-4', '4-6', '6-8', '8+'] as const;
 const ROOM_FORMATS = ['Single Room', 'Multi-Room', 'Linear', 'Non-Linear'] as const;
 const DURATIONS = ['45 mins', '60 mins', '90 mins'] as const;
 const PROVIDERS = ['openai', 'gemini', 'mock'] as const;
+const DEFAULT_GENERATION_COOLDOWN_SECONDS = 10;
 
 const SYSTEM_PROMPT = `You are PuzzleFlow AI, a professional escape-room designer and operations consultant. Design practical, buildable physical escape rooms for real operators.
 
@@ -87,6 +88,12 @@ type EntitledUserRecord = {
   tier?: 'free' | 'pro';
   role?: string;
   is_pro?: boolean;
+};
+
+type GenerationCooldownRecord = {
+  id: string;
+  user_id: string;
+  last_generated_at: string;
 };
 
 type RoomPuzzle = {
@@ -170,6 +177,51 @@ async function getAuthenticatedProUser(pbUrl: string, token: string): Promise<En
   }
 }
 
+function getGenerationCooldownSeconds(): number {
+  const configured = Number(process.env.GENERATION_COOLDOWN_SECONDS || DEFAULT_GENERATION_COOLDOWN_SECONDS);
+  if (!Number.isFinite(configured) || configured < 1) return DEFAULT_GENERATION_COOLDOWN_SECONDS;
+  return Math.min(Math.floor(configured), 300);
+}
+
+async function enforceGenerationCooldown(pbUrl: string, userId: string): Promise<void> {
+  const pb = new PocketBase(pbUrl);
+  pb.authStore.save(requiredEnv('PB_SUPERUSER_TOKEN'));
+
+  const cooldownSeconds = getGenerationCooldownSeconds();
+  const now = new Date();
+  const lastRecord = await pb.collection('generation_cooldowns')
+    .getFirstListItem<GenerationCooldownRecord>(pb.filter('user_id = {:userId}', { userId }), { requestKey: null })
+    .catch((err: unknown) => {
+      if (typeof err === 'object' && err && 'status' in err && (err as { status?: number }).status === 404) {
+        return null;
+      }
+      throw err;
+    });
+
+  if (lastRecord?.last_generated_at) {
+    const lastGeneratedAt = Date.parse(lastRecord.last_generated_at);
+    if (Number.isFinite(lastGeneratedAt)) {
+      const elapsedSeconds = Math.floor((now.getTime() - lastGeneratedAt) / 1000);
+      if (elapsedSeconds < cooldownSeconds) {
+        const retryAfterSeconds = cooldownSeconds - elapsedSeconds;
+        const error = namedError('RateLimitError', `Please wait ${retryAfterSeconds} more seconds before generating another room.`);
+        (error as Error & { retryAfterSeconds?: number }).retryAfterSeconds = retryAfterSeconds;
+        throw error;
+      }
+    }
+
+    await pb.collection('generation_cooldowns').update(lastRecord.id, {
+      last_generated_at: now.toISOString(),
+    }, { requestKey: null });
+    return;
+  }
+
+  await pb.collection('generation_cooldowns').create({
+    user_id: userId,
+    last_generated_at: now.toISOString(),
+  }, { requestKey: null });
+}
+
 function isOneOf<T extends readonly string[]>(value: unknown, options: T): value is T[number] {
   return typeof value === 'string' && (options as readonly string[]).includes(value);
 }
@@ -210,10 +262,10 @@ function validateBody(body: GenerateRoomBody): ValidatedGenerateRoomBody {
 
   return {
     theme,
-    difficulty: body.difficulty,
-    players: body.players,
-    format: body.format,
-    duration: body.duration,
+    difficulty: body.difficulty as Difficulty,
+    players: body.players as PlayerCount,
+    format: body.format as RoomFormat,
+    duration: body.duration as Duration,
   };
 }
 
@@ -520,12 +572,14 @@ async function generateRoom(input: ValidatedGenerateRoomBody): Promise<{ provide
 }
 
 export const handler: Handler = async (event) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin;
+
   if (event.httpMethod === 'OPTIONS') {
-    return emptyOptionsResponse();
+    return emptyOptionsResponse(requestOrigin);
   }
 
   if (event.httpMethod !== 'POST') {
-    return methodNotAllowed(['POST', 'OPTIONS']);
+    return methodNotAllowed(['POST', 'OPTIONS'], requestOrigin);
   }
 
   try {
@@ -534,34 +588,45 @@ export const handler: Handler = async (event) => {
     const user = await getAuthenticatedProUser(pocketBaseUrl, token);
     const body = parseJsonBody<GenerateRoomBody>(event.body);
     const input = validateBody(body);
+    await enforceGenerationCooldown(pocketBaseUrl, user.id);
     const { provider, model, room } = await generateRoom(input);
 
     console.info('Generated PuzzleFlow room for Pro user', { userId: user.id, provider, model });
-    return jsonResponse(200, room);
+    return jsonResponse(200, room, {}, requestOrigin);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'UnauthorizedError') {
-      return jsonResponse(401, { error: err.message });
+      return jsonResponse(401, { error: err.message }, {}, requestOrigin);
     }
 
     if (err instanceof Error && err.name === 'ForbiddenError') {
-      return jsonResponse(403, { error: err.message });
+      return jsonResponse(403, { error: err.message }, {}, requestOrigin);
     }
 
     if (err instanceof Error && err.name === 'BadRequestError') {
       return jsonResponse(400, {
         error: err.message,
         details: (err as Error & { details?: Record<string, string> }).details,
-      });
+      }, {}, requestOrigin);
     }
 
     if (err instanceof Error && err.name === 'MissingEnvironmentVariableError') {
-      return jsonResponse(500, { error: err.message || 'AI provider is not configured.' });
+      return jsonResponse(500, { error: err.message || 'AI provider is not configured.' }, {}, requestOrigin);
     }
 
     if (err instanceof Error && (err.name === 'ProviderResponseError' || err.name === 'ProviderRequestError')) {
-      return jsonResponse(502, { error: err.message });
+      return jsonResponse(502, { error: err.message }, {}, requestOrigin);
     }
 
-    return errorResponse(err, 'Generation failed. Please try again.');
+    if (err instanceof Error && err.name === 'RateLimitError') {
+      const retryAfterSeconds = (err as Error & { retryAfterSeconds?: number }).retryAfterSeconds || getGenerationCooldownSeconds();
+      return jsonResponse(429, {
+        error: err.message,
+        retryAfterSeconds,
+      }, {
+        'Retry-After': String(retryAfterSeconds),
+      }, requestOrigin);
+    }
+
+    return errorResponse(err, 'Generation failed. Please try again.', 500, requestOrigin);
   }
 };

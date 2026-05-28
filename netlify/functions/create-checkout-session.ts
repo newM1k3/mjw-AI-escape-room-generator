@@ -48,12 +48,14 @@ async function getAuthenticatedUser(pbUrl: string, token: string): Promise<Authe
 }
 
 export const handler: Handler = async (event) => {
+  const requestOrigin = event.headers.origin || event.headers.Origin;
+
   if (event.httpMethod === 'OPTIONS') {
-    return emptyOptionsResponse();
+    return emptyOptionsResponse(requestOrigin);
   }
 
   if (event.httpMethod !== 'POST') {
-    return methodNotAllowed(['POST', 'OPTIONS']);
+    return methodNotAllowed(['POST', 'OPTIONS'], requestOrigin);
   }
 
   try {
@@ -86,21 +88,20 @@ export const handler: Handler = async (event) => {
     });
 
     if (!session.url) {
-      return jsonResponse(502, { error: 'Stripe did not return a checkout URL. Please try again or contact support.' });
+      return jsonResponse(502, { error: 'Stripe did not return a checkout URL. Please try again or contact support.' }, {}, requestOrigin);
     }
 
     console.info('Created PuzzleFlow Pro checkout session', {
-      sessionId: session.id,
       userId: user.id,
       product: 'puzzleflow_pro_lifetime',
     });
 
-    return jsonResponse(200, { url: session.url });
+    return jsonResponse(200, { url: session.url }, {}, requestOrigin);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'UnauthorizedError') {
-      return jsonResponse(401, { error: err.message });
+      return jsonResponse(401, { error: err.message }, {}, requestOrigin);
     }
 
-    return errorResponse(err, 'Checkout could not be started. Please try again or contact support.');
+    return errorResponse(err, 'Checkout could not be started. Please try again or contact support.', 500, requestOrigin);
   }
 };
