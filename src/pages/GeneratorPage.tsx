@@ -10,6 +10,7 @@ interface GeneratorPageProps {
   onUpgrade: () => void;
   isUpgradeLoading?: boolean;
   checkoutError?: string;
+  onNavigateLegal?: (page: 'terms' | 'privacy') => void;
 }
 
 const defaultForm: GeneratorFormData = {
@@ -20,7 +21,7 @@ const defaultForm: GeneratorFormData = {
   duration: '60 mins',
 };
 
-export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '' }: GeneratorPageProps) {
+export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '', onNavigateLegal }: GeneratorPageProps) {
   const { user } = useAuth();
   const [form, setForm] = useState<GeneratorFormData>(defaultForm);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -120,7 +121,7 @@ export default function GeneratorPage({ onUpgrade, isUpgradeLoading = false, che
         <p className="text-slate-400">Configure your escape room parameters and generate a complete puzzle flow.</p>
       </div>
 
-      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError}>
+      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError} onNavigateLegal={onNavigateLegal}>
         <div className="grid lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2">
             <form onSubmit={handleGenerate} className="bg-slate-800 border border-slate-700 rounded-2xl p-6 space-y-5 sticky top-6">

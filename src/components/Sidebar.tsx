@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { Wand2, BookOpen, FlaskConical, Zap, LogOut, User, ChevronRight, Menu, X } from 'lucide-react';
+import { Wand2, BookOpen, FlaskConical, Zap, LogOut, User, ChevronRight, Menu, X, FileText, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import AuthModal from './AuthModal';
-
-type Page = 'generator' | 'saved' | 'demo';
+import type { Page } from '../App';
 
 interface SidebarProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onUpgrade: () => void;
+  onSignOut: () => void;
 }
 
-export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarProps) {
-  const { user, isPro, logout } = useAuth();
+export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut }: SidebarProps) {
+  const { user, isPro } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -21,6 +21,16 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
     { id: 'saved', label: 'My Rooms', icon: <BookOpen size={17} /> },
     { id: 'demo', label: 'Demo Room', icon: <FlaskConical size={17} /> },
   ];
+
+  const navigateAndCloseMobile = (page: Page) => {
+    onNavigate(page);
+    setMobileOpen(false);
+  };
+
+  const handleLegalNavigate = (page: 'terms' | 'privacy') => {
+    setShowAuth(false);
+    navigateAndCloseMobile(page);
+  };
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -40,7 +50,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
         {navItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => { onNavigate(item.id); setMobileOpen(false); }}
+            onClick={() => navigateAndCloseMobile(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
               currentPage === item.id
                 ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
@@ -54,6 +64,39 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
             )}
           </button>
         ))}
+
+        <div className="pt-4 mt-4 border-t border-slate-800 space-y-1">
+          {user && (
+            <button
+              onClick={() => navigateAndCloseMobile('account')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                currentPage === 'account'
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              <User size={16} />
+              Account
+              {currentPage === 'account' && <ChevronRight size={14} className="ml-auto text-cyan-500" />}
+            </button>
+          )}
+          <button
+            onClick={() => navigateAndCloseMobile('terms')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+              currentPage === 'terms' ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <FileText size={14} /> Terms of Use
+          </button>
+          <button
+            onClick={() => navigateAndCloseMobile('privacy')}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+              currentPage === 'privacy' ? 'text-cyan-400 bg-cyan-500/10' : 'text-slate-600 hover:text-slate-400 hover:bg-slate-800'
+            }`}
+          >
+            <Shield size={14} /> Privacy Policy
+          </button>
+        </div>
       </nav>
 
       <div className="px-3 pb-4 space-y-3 border-t border-slate-800 pt-4">
@@ -69,10 +112,14 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
 
         {user ? (
           <div className="bg-slate-800 rounded-lg px-3 py-2.5 flex items-center gap-3">
-            <div className="w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center shrink-0">
+            <button
+              onClick={() => navigateAndCloseMobile('account')}
+              className="w-7 h-7 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center shrink-0 transition-colors"
+              title="View account"
+            >
               <User size={13} className="text-slate-400" />
-            </div>
-            <div className="flex-1 min-w-0">
+            </button>
+            <button onClick={() => navigateAndCloseMobile('account')} className="flex-1 min-w-0 text-left">
               <p className="text-white text-xs font-medium truncate">{user.name || user.email}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 {isPro ? (
@@ -83,9 +130,9 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
                   <span className="text-slate-500 text-xs">Free tier</span>
                 )}
               </div>
-            </div>
+            </button>
             <button
-              onClick={logout}
+              onClick={onSignOut}
               className="text-slate-600 hover:text-slate-400 transition-colors"
               title="Sign out"
             >
@@ -127,7 +174,7 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade }: SidebarP
         <SidebarContent />
       </aside>
 
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} onNavigateLegal={handleLegalNavigate} />}
     </>
   );
 }

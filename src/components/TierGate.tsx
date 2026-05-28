@@ -9,9 +9,10 @@ interface TierGateProps {
   onUpgrade?: () => void;
   isUpgradeLoading?: boolean;
   checkoutError?: string;
+  onNavigateLegal?: (page: 'terms' | 'privacy') => void;
 }
 
-export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeLoading = false, checkoutError = '' }: TierGateProps) {
+export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeLoading = false, checkoutError = '', onNavigateLegal }: TierGateProps) {
   const { user, isPro, isLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
@@ -41,7 +42,7 @@ export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeL
             Sign In or Create Account
           </button>
         </div>
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} onNavigateLegal={onNavigateLegal} />}
       </>
     );
   }

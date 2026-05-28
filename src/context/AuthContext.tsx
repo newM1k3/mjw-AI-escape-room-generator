@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import pb from '../lib/pocketbase';
 import { getPublicConfigWarning } from '../config';
 import type { UserRecord } from '../types';
@@ -9,6 +10,7 @@ interface AuthContextValue {
   isPro: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -27,15 +29,48 @@ function withTimeout<T>(promise: Promise<T>, timeoutMessage: string): Promise<T>
   });
 }
 
+function getFieldMessage(error: unknown, field: string): string | null {
+  if (!error || typeof error !== 'object' || !('data' in error)) return null;
+  const data = (error as { data?: { data?: Record<string, { message?: string }> } }).data?.data;
+  return data?.[field]?.message || null;
+}
+
 function getAuthErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.includes('timed out')) {
     return error.message;
   }
 
+  if (error instanceof TypeError && /fetch|network|failed/i.test(error.message)) {
+    return 'PuzzleFlow AI could not reach the authentication service. Please check your connection and try again.';
+  }
+
   if (error && typeof error === 'object' && 'status' in error) {
     const status = Number((error as { status?: unknown }).status);
+    const emailMessage = getFieldMessage(error, 'email');
+    const passwordMessage = getFieldMessage(error, 'password');
+
+    if (status === 0) {
+      return 'PuzzleFlow AI could not reach PocketBase. Please try again in a moment or contact support if this continues.';
+    }
+
+    if (emailMessage) {
+      return `Email issue: ${emailMessage}`;
+    }
+
+    if (passwordMessage) {
+      return `Password issue: ${passwordMessage}`;
+    }
+
     if (status === 400 || status === 401) {
       return 'The email or password is incorrect. Please check your credentials and try again.';
+    }
+
+    if (status === 404) {
+      return 'The authentication service is not available at the configured PocketBase URL.';
+    }
+
+    if (status >= 500) {
+      return 'The authentication service is temporarily unavailable. Please try again shortly.';
     }
   }
 
@@ -46,11 +81,40 @@ function getAuthErrorMessage(error: unknown): string {
   return 'Authentication failed. Please try again.';
 }
 
+function getPasswordResetErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.includes('timed out')) {
+    return error.message;
+  }
+
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = Number((error as { status?: unknown }).status);
+
+    if (status === 400 || status === 404) {
+      return 'Password reset could not be started. Confirm this email belongs to a PuzzleFlow AI account, then try again.';
+    }
+
+    if (status >= 500) {
+      return 'Password reset email could not be sent. PocketBase email delivery may not be configured yet. Contact support for help.';
+    }
+  }
+
+  if (error instanceof TypeError && /fetch|network|failed/i.test(error.message)) {
+    return 'PuzzleFlow AI could not reach the authentication service. Please check your connection and try again.';
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return 'Password reset could not be started. If this continues, PocketBase email delivery may need to be configured.';
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
+    setIsLoading(true);
     const configWarning = getPublicConfigWarning();
     if (configWarning) {
       console.warn(configWarning);
@@ -71,12 +135,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn('Clearing invalid PocketBase auth state:', getAuthErrorMessage(error));
         pb.authStore.clear();
         setUser(null);
+      } finally {
+        setIsLoading(false);
       }
     } else {
       setUser(null);
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     loadUser();
@@ -88,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [loadUser]);
 
   const login = async (email: string, password: string) => {
     const configWarning = getPublicConfigWarning();
@@ -96,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       await withTimeout(
-        pb.collection('users').authWithPassword(email, password),
+        pb.collection('users').authWithPassword(email.trim().toLowerCase(), password),
         'Sign in timed out. Please check the PocketBase connection and try again.'
       );
       await loadUser();
@@ -110,23 +176,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (configWarning) throw new Error(configWarning);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       await withTimeout(
         pb.collection('users').create({
-          email,
+          email: normalizedEmail,
           password,
           passwordConfirm: password,
-          name,
+          name: name.trim(),
           tier: 'free',
         }),
         'Account creation timed out. Please check the PocketBase connection and try again.'
       );
       await withTimeout(
-        pb.collection('users').authWithPassword(email, password),
+        pb.collection('users').authWithPassword(normalizedEmail, password),
         'Sign in timed out after account creation. Please try signing in manually.'
       );
       await loadUser();
     } catch (error) {
       throw new Error(getAuthErrorMessage(error));
+    }
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    const configWarning = getPublicConfigWarning();
+    if (configWarning) throw new Error(configWarning);
+
+    try {
+      await withTimeout(
+        pb.collection('users').requestPasswordReset(email.trim().toLowerCase()),
+        'Password reset request timed out. Please check the PocketBase connection and try again.'
+      );
+    } catch (error) {
+      throw new Error(getPasswordResetErrorMessage(error));
     }
   };
 
@@ -143,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPro = user?.tier === 'pro';
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isPro, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, isPro, login, register, requestPasswordReset, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

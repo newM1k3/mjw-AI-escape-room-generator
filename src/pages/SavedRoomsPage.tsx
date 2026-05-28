@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BookOpen, Trash2, Calendar, Users, ChevronRight, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import TierGate from '../components/TierGate';
 import RoomOutput from '../components/RoomOutput';
@@ -10,9 +10,10 @@ interface SavedRoomsPageProps {
   onUpgrade: () => void;
   isUpgradeLoading?: boolean;
   checkoutError?: string;
+  onNavigateLegal?: (page: 'terms' | 'privacy') => void;
 }
 
-export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '' }: SavedRoomsPageProps) {
+export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, checkoutError = '', onNavigateLegal }: SavedRoomsPageProps) {
   const { user } = useAuth();
   const [rooms, setRooms] = useState<GeneratedRoom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -20,8 +21,14 @@ export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, ch
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
-  const loadRooms = async () => {
-    if (!user) return;
+  const loadRooms = useCallback(async () => {
+    if (!user) {
+      setRooms([]);
+      setSelectedRoom(null);
+      setError('');
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError('');
     try {
@@ -36,11 +43,11 @@ export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, ch
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     loadRooms();
-  }, [user]);
+  }, [loadRooms]);
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -79,7 +86,7 @@ export default function SavedRoomsPage({ onUpgrade, isUpgradeLoading = false, ch
         <p className="text-slate-400">Your saved escape room puzzle flows.</p>
       </div>
 
-      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError}>
+      <TierGate requiredTier="pro" onUpgrade={onUpgrade} isUpgradeLoading={isUpgradeLoading} checkoutError={checkoutError} onNavigateLegal={onNavigateLegal}>
         {selectedRoom ? (
           <div>
             <button

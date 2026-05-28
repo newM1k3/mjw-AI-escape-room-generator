@@ -9,7 +9,7 @@ Before deploying to Netlify, configure the following environment variables in **
 | Variable | Scope | Required | Purpose |
 |---|---:|---:|---|
 | `VITE_POCKETBASE_URL` | Frontend | Yes | Public PocketBase URL used by the browser for user auth and saved-room reads/writes, for example `https://mjwdesign-core.pockethost.io`. |
-| `VITE_SUPPORT_EMAIL` | Frontend | No | Public support contact shown or used by future UI copy. Defaults to `support@example.com`. |
+| `VITE_SUPPORT_EMAIL` | Frontend | Recommended | Public support contact shown in auth, account, legal, and password-reset copy. Defaults to `support@example.com`, but should be set before launch. |
 | `ANTHROPIC_API_KEY` | Netlify Functions | Yes | Server-only Anthropic API key used by `/.netlify/functions/generate-room`. |
 | `ANTHROPIC_MODEL` | Netlify Functions | No | Optional Anthropic model override. Defaults to `claude-sonnet-4-5`. |
 | `STRIPE_SECRET_KEY` | Netlify Functions | Yes | Server-only Stripe secret key used to create checkout sessions and verify webhook behavior. |
@@ -33,7 +33,11 @@ The app expects three Netlify Functions under `netlify/functions`.
 
 ## PocketBase Requirements
 
-PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`, and optionally `stripe_customer_id`. The app also expects a `generated_rooms` collection with fields for `user`, `title`, `theme`, `difficulty`, and `content`. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
+PocketBase must contain a `users` auth collection compatible with the app's auth flow. The app expects user records to include `tier` with values such as `free` or `pro`, and optionally `stripe_customer_id`. The app uses the PocketBase auth token stored by the SDK only for the browser session; Pro access must come from the authenticated PocketBase user record, not from custom localStorage flags. The app also expects a `generated_rooms` collection with fields for `user`, `title`, `theme`, `difficulty`, and `content`. For production, configure `PB_SUPERUSER_TOKEN` in Netlify if possible. If you cannot issue a superuser token yet, configure `PB_ADMIN_EMAIL` and `PB_ADMIN_PASSWORD` as a fallback until the token workflow is available.
+
+Password reset uses PocketBase's built-in `requestPasswordReset` flow. Before public launch, configure PocketBase mail settings, set the correct application URL in PocketBase, and test the reset email end-to-end. If PocketBase email delivery is not configured, the app will show a friendly support-oriented message instead of leaving the user stuck.
+
+The app includes placeholder Terms of Use and Privacy Policy pages so the auth modal and sidebar have working legal links. Replace these placeholders with final legal copy before launch, including business entity, refund/access terms, privacy processor disclosures, and support contact details.
 
 ## Stripe Setup
 

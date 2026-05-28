@@ -4,14 +4,28 @@ import Sidebar from './components/Sidebar';
 import GeneratorPage from './pages/GeneratorPage';
 import SavedRoomsPage from './pages/SavedRoomsPage';
 import DemoPage from './pages/DemoPage';
+import AccountPage from './pages/AccountPage';
+import LegalPage from './pages/LegalPage';
 
-type Page = 'generator' | 'saved' | 'demo';
+export type Page = 'generator' | 'saved' | 'demo' | 'account' | 'terms' | 'privacy';
 
 function AppShell() {
   const [currentPage, setCurrentPage] = useState<Page>('generator');
   const [checkoutError, setCheckoutError] = useState('');
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+
+  const navigateTo = (page: Page) => {
+    setCheckoutError('');
+    setCurrentPage(page);
+  };
+
+  const handleSafeSignOut = () => {
+    logout();
+    setCheckoutError('');
+    setIsCheckoutLoading(false);
+    setCurrentPage('demo');
+  };
 
   const handleUpgrade = async () => {
     setCheckoutError('');
@@ -53,11 +67,9 @@ function AppShell() {
     <div className="min-h-screen bg-slate-950 text-white flex">
       <Sidebar
         currentPage={currentPage}
-        onNavigate={(page) => {
-          setCheckoutError('');
-          setCurrentPage(page);
-        }}
+        onNavigate={navigateTo}
         onUpgrade={handleUpgrade}
+        onSignOut={handleSafeSignOut}
       />
 
       <main className="flex-1 lg:ml-60 min-h-screen">
@@ -69,14 +81,29 @@ function AppShell() {
           )}
 
           {currentPage === 'generator' && (
-            <GeneratorPage onUpgrade={handleUpgrade} isUpgradeLoading={isCheckoutLoading} checkoutError={checkoutError} />
+            <GeneratorPage
+              onUpgrade={handleUpgrade}
+              isUpgradeLoading={isCheckoutLoading}
+              checkoutError={checkoutError}
+              onNavigateLegal={navigateTo}
+            />
           )}
           {currentPage === 'saved' && (
-            <SavedRoomsPage onUpgrade={handleUpgrade} isUpgradeLoading={isCheckoutLoading} checkoutError={checkoutError} />
+            <SavedRoomsPage
+              onUpgrade={handleUpgrade}
+              isUpgradeLoading={isCheckoutLoading}
+              checkoutError={checkoutError}
+              onNavigateLegal={navigateTo}
+            />
           )}
           {currentPage === 'demo' && (
             <DemoPage onUpgrade={handleUpgrade} isUpgradeLoading={isCheckoutLoading} checkoutError={checkoutError} />
           )}
+          {currentPage === 'account' && (
+            <AccountPage onSignOut={handleSafeSignOut} onUpgrade={handleUpgrade} isUpgradeLoading={isCheckoutLoading} />
+          )}
+          {currentPage === 'terms' && <LegalPage type="terms" />}
+          {currentPage === 'privacy' && <LegalPage type="privacy" />}
         </div>
       </main>
     </div>

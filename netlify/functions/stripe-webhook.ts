@@ -32,7 +32,7 @@ export const handler: Handler = async (event) => {
       return jsonResponse(400, { error: 'Missing stripe-signature header.' });
     }
 
-    let stripeEvent: any;
+    let stripeEvent: Stripe.Event;
     try {
       stripeEvent = stripe.webhooks.constructEvent(event.body || '', sig, webhookSecret);
     } catch (err: unknown) {
@@ -41,7 +41,7 @@ export const handler: Handler = async (event) => {
     }
 
     if (stripeEvent.type === 'checkout.session.completed') {
-      const session = stripeEvent.data.object as any;
+      const session = stripeEvent.data.object as Stripe.Checkout.Session;
       const userId = session.metadata?.userId;
 
       if (!userId) {
