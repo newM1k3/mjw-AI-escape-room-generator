@@ -39,13 +39,13 @@ export default function Sidebar({ currentPage, onNavigate, onUpgrade, onSignOut,
         <button
           onClick={onNavigateLanding}
           className="flex items-center gap-3 text-left w-full rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
-          aria-label="View PuzzleFlow AI landing page"
+          aria-label="View ImmersiveKit AI Room Generator landing page"
         >
           <div className="w-9 h-9 bg-cyan-500 rounded-lg flex items-center justify-center shrink-0">
             <Wand2 size={18} className="text-slate-900" />
           </div>
           <div>
-            <h1 className="text-white font-bold text-base leading-tight">PuzzleFlow AI</h1>
+            <h1 className="text-white font-bold text-base leading-tight">ImmersiveKit</h1>
             <p className="text-slate-500 text-xs">Escape Room Generator</p>
           </div>
         </button>

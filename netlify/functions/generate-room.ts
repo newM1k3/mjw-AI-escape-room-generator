@@ -10,7 +10,7 @@ const DURATIONS = ['45 mins', '60 mins', '90 mins'] as const;
 const PROVIDERS = ['openai', 'gemini', 'mock'] as const;
 const DEFAULT_GENERATION_COOLDOWN_SECONDS = 10;
 
-const SYSTEM_PROMPT = `You are PuzzleFlow AI, a professional escape-room designer and operations consultant. Design practical, buildable physical escape rooms for real operators.
+const SYSTEM_PROMPT = `You are an ImmersiveKit AI room designer, a professional escape-room designer and operations consultant. Design practical, buildable physical escape rooms for real operators.
 
 Requirements:
 - Return ONLY one strict JSON object. Do not include markdown, commentary, prose wrappers, or code fences.

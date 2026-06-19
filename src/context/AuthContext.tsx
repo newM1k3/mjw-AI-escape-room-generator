@@ -45,7 +45,7 @@ function getAuthErrorMessage(error: unknown): string {
   }
 
   if (error instanceof TypeError && /fetch|network|failed/i.test(error.message)) {
-    return 'PuzzleFlow AI could not reach the authentication service. Please check your connection and try again.';
+    return 'ImmersiveKit could not reach the authentication service. Please check your connection and try again.';
   }
 
   if (error && typeof error === 'object' && 'status' in error) {
@@ -54,7 +54,7 @@ function getAuthErrorMessage(error: unknown): string {
     const passwordMessage = getFieldMessage(error, 'password');
 
     if (status === 0) {
-      return 'PuzzleFlow AI could not reach PocketBase. Please try again in a moment or contact support if this continues.';
+      return 'ImmersiveKit could not reach PocketBase. Please try again in a moment or contact support if this continues.';
     }
 
     if (emailMessage) {
@@ -94,7 +94,7 @@ function getPasswordResetErrorMessage(error: unknown): string {
     const status = Number((error as { status?: unknown }).status);
 
     if (status === 400 || status === 404) {
-      return 'Password reset could not be started. Confirm this email belongs to a PuzzleFlow AI account, then try again.';
+      return 'Password reset could not be started. Confirm this email belongs to a ImmersiveKit account, then try again.';
     }
 
     if (status >= 500) {
@@ -103,7 +103,7 @@ function getPasswordResetErrorMessage(error: unknown): string {
   }
 
   if (error instanceof TypeError && /fetch|network|failed/i.test(error.message)) {
-    return 'PuzzleFlow AI could not reach the authentication service. Please check your connection and try again.';
+    return 'ImmersiveKit could not reach the authentication service. Please check your connection and try again.';
   }
 
   if (error instanceof Error && error.message) {
@@ -157,7 +157,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadUser();
+    // SSO token handoff from the ImmersiveKit dashboard.
+    // The dashboard appends ?token=<pb_auth_token> when launching a tool.
+    async function initAuth() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      if (token) {
+        try {
+          pb.authStore.save(token, null);
+          await pb.collection('users').authRefresh();
+        } catch {
+          pb.authStore.clear();
+        }
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      await loadUser();
+    }
+
+    void initAuth();
 
     const unsubscribe = pb.authStore.onChange(() => {
       loadUser();

@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('PuzzleFlow UI error boundary captured an error', {
+    console.error('ImmersiveKit UI error boundary captured an error', {
       name: error.name,
       message: error.message,
       componentStack: errorInfo.componentStack,
@@ -37,7 +37,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-300">
             <AlertTriangle size={28} aria-hidden="true" />
           </div>
-          <h1 id="error-boundary-title" className="text-2xl font-bold text-white">PuzzleFlow AI hit a display error.</h1>
+          <h1 id="error-boundary-title" className="text-2xl font-bold text-white">ImmersiveKit AI hit a display error.</h1>
           <p className="mt-3 leading-7 text-slate-300">
             Your account and saved rooms are still protected. Reload the app to start a clean session, or contact support if this keeps happening.
           </p>
@@ -47,7 +47,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 font-bold text-slate-950 transition-colors hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-200 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
             <RefreshCw size={17} aria-hidden="true" />
-            Reload PuzzleFlow AI
+            Reload ImmersiveKit AI
           </button>
         </section>
       </main>

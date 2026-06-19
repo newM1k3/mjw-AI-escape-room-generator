@@ -136,7 +136,7 @@ function AppShell() {
       console.error('Account refresh after checkout failed', err);
       setCheckoutBanner({
         type: 'error',
-        text: 'Payment was received, but PuzzleFlow AI could not refresh your account yet. Use Refresh Pro Access below, or contact support if this continues.',
+        text: 'Payment was received, but ImmersiveKit could not refresh your account yet. Use Refresh Pro Access below, or contact support if this continues.',
       });
     } finally {
       setIsUnlockingPro(false);
@@ -315,7 +315,7 @@ function AppShell() {
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">404</p>
               <h1 id="not-found-title" className="mt-3 text-3xl font-bold text-white">Page not found</h1>
               <p className="mx-auto mt-3 max-w-2xl leading-7 text-slate-300">
-                The route you opened is not part of PuzzleFlow AI. Use the button below to return to the room generator.
+                The route you opened is not part of ImmersiveKit. Use the button below to return to the room generator.
               </p>
               <button
                 type="button"

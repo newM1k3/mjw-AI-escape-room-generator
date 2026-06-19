@@ -25,7 +25,7 @@ export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeL
     setRefreshError('');
     refreshUser().catch((err) => {
       console.error('Entitlement refresh failed for protected route', err);
-      setRefreshError('PuzzleFlow AI could not confirm your Pro access yet. Please refresh or try again shortly.');
+      setRefreshError('ImmersiveKit could not confirm your Pro access yet. Please refresh or try again shortly.');
     });
   }, [refreshUser, requiredTier, user?.id]);
 
@@ -71,7 +71,7 @@ export default function TierGate({ children, requiredTier, onUpgrade, isUpgradeL
         </div>
         <h2 className="text-2xl font-bold text-white mb-3">Checking Pro Access</h2>
         <p className="text-slate-400 leading-relaxed">
-          PuzzleFlow AI is refreshing your PocketBase account before showing protected Pro features.
+          ImmersiveKit is refreshing your PocketBase account before showing protected Pro features.
         </p>
       </div>
     );
