@@ -7,7 +7,7 @@ const DIFFICULTIES = ['Beginner', 'Intermediate', 'Expert', 'Enthusiast-Only'] a
 const PLAYER_COUNTS = ['2-4', '4-6', '6-8', '8+'] as const;
 const ROOM_FORMATS = ['Single Room', 'Multi-Room', 'Linear', 'Non-Linear'] as const;
 const DURATIONS = ['45 mins', '60 mins', '90 mins'] as const;
-const PROVIDERS = ['openai', 'gemini', 'mock'] as const;
+const PROVIDERS = ['anthropic', 'openai', 'gemini', 'mock'] as const;
 const DEFAULT_GENERATION_COOLDOWN_SECONDS = 10;
 
 const SYSTEM_PROMPT = `You are an ImmersiveKit AI room designer, a professional escape-room designer and operations consultant. Design practical, buildable physical escape rooms for real operators.
@@ -273,11 +273,11 @@ function getProvider(): AiProvider {
   const configuredProvider = process.env.AI_PROVIDER?.trim().toLowerCase();
 
   if (!configuredProvider) {
-    throw namedError('MissingEnvironmentVariableError', 'AI provider is not configured. Set AI_PROVIDER to openai, gemini, or mock.');
+    throw namedError('MissingEnvironmentVariableError', 'AI provider is not configured. Set AI_PROVIDER to anthropic, openai, gemini, or mock.');
   }
 
   if (!PROVIDERS.includes(configuredProvider as AiProvider)) {
-    throw namedError('MissingEnvironmentVariableError', 'AI provider is not configured. AI_PROVIDER must be openai, gemini, or mock.');
+    throw namedError('MissingEnvironmentVariableError', 'AI provider is not configured. AI_PROVIDER must be anthropic, openai, gemini, or mock.');
   }
 
   return configuredProvider as AiProvider;
@@ -287,6 +287,7 @@ function getModel(provider: AiProvider): string {
   const configuredModel = process.env.AI_MODEL?.trim();
   if (configuredModel) return configuredModel;
 
+  if (provider === 'anthropic') return 'claude-opus-4-8';
   if (provider === 'openai') return 'gpt-4.1-mini';
   if (provider === 'gemini') return 'gemini-2.5-flash';
   return 'mock-room-designer-v1';
@@ -300,6 +301,15 @@ function extractTextFromOpenAi(data: unknown): string {
   const response = data as { choices?: Array<{ message?: { content?: unknown } }> };
   const content = response.choices?.[0]?.message?.content;
   return typeof content === 'string' ? content : '';
+}
+
+function extractTextFromAnthropic(data: unknown): string {
+  const response = data as { content?: Array<{ type?: string; text?: unknown }> };
+  return (response.content ?? [])
+    .filter((block) => block.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text as string)
+    .join('')
+    .trim();
 }
 
 function extractTextFromGemini(data: unknown): string {
@@ -492,6 +502,36 @@ function mockRoom(input: ValidatedGenerateRoomBody): GeneratedRoom {
   };
 }
 
+async function callAnthropic(model: string, input: ValidatedGenerateRoomBody): Promise<string> {
+  const apiKey = requiredEnv('ANTHROPIC_API_KEY');
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8192,
+      system: SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: buildUserPrompt(input) },
+      ],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const providerMessage = typeof (data as { error?: { message?: unknown } }).error?.message === 'string'
+      ? (data as { error: { message: string } }).error.message
+      : 'Anthropic generation failed.';
+    throw namedError('ProviderRequestError', providerMessage);
+  }
+
+  return extractTextFromAnthropic(data);
+}
+
 async function callOpenAi(model: string, input: ValidatedGenerateRoomBody): Promise<string> {
   const apiKey = requiredEnv('OPENAI_API_KEY');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -563,9 +603,11 @@ async function generateRoom(input: ValidatedGenerateRoomBody): Promise<{ provide
     return { provider, model, room: mockRoom(input) };
   }
 
-  const rawText = provider === 'openai'
-    ? await callOpenAi(model, input)
-    : await callGemini(model, input);
+  const rawText = provider === 'anthropic'
+    ? await callAnthropic(model, input)
+    : provider === 'openai'
+      ? await callOpenAi(model, input)
+      : await callGemini(model, input);
 
   const parsed = parseRoomJson(rawText);
   return { provider, model, room: normalizeRoom(parsed, input) };

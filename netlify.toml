@@ -21,3 +21,7 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# Room generation with Opus can exceed the 10s default; give it headroom.
+[functions.generate-room]
+  timeout = 26
