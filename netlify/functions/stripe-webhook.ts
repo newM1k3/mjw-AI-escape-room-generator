@@ -2,6 +2,7 @@ import type { Handler } from '@netlify/functions';
 import Stripe from 'stripe';
 import PocketBase from 'pocketbase';
 import { emptyOptionsResponse, errorResponse, jsonResponse, methodNotAllowed, requiredEnv } from './_utils';
+import { getSuperuserPb } from './pbSuperuser';
 
 type ProEntitlementPayload = {
   tier: 'pro';
@@ -11,11 +12,6 @@ type ProEntitlementPayload = {
   stripe_checkout_session_id: string;
   pro_purchased_at: string;
 };
-
-async function authenticatePocketBase(pb: PocketBase) {
-  const superuserToken = requiredEnv('PB_SUPERUSER_TOKEN');
-  pb.authStore.save(superuserToken);
-}
 
 function getSessionCustomerId(session: Stripe.Checkout.Session): string {
   if (typeof session.customer === 'string') return session.customer;
@@ -105,8 +101,7 @@ export const handler: Handler = async (event) => {
       return jsonResponse(200, { received: true, ignored: true, reason: 'payment_not_paid' }, {}, requestOrigin);
     }
 
-    const pb = new PocketBase(pocketBaseUrl);
-    await authenticatePocketBase(pb);
+    const pb = await getSuperuserPb(pocketBaseUrl);
 
     const purchasedAt = new Date((session.created || Math.floor(Date.now() / 1000)) * 1000).toISOString();
     const entitlementPayload: ProEntitlementPayload = {
