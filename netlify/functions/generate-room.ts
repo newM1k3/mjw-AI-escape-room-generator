@@ -2,6 +2,7 @@ import type { Handler } from '@netlify/functions';
 import PocketBase from 'pocketbase';
 import { hasProEntitlement } from '../../src/lib/entitlements';
 import { emptyOptionsResponse, errorResponse, jsonResponse, methodNotAllowed, parseJsonBody, requiredEnv } from './_utils';
+import { getSuperuserPb } from './pbSuperuser';
 
 const DIFFICULTIES = ['Beginner', 'Intermediate', 'Expert', 'Enthusiast-Only'] as const;
 const PLAYER_COUNTS = ['2-4', '4-6', '6-8', '8+'] as const;
@@ -184,8 +185,7 @@ function getGenerationCooldownSeconds(): number {
 }
 
 async function enforceGenerationCooldown(pbUrl: string, userId: string): Promise<void> {
-  const pb = new PocketBase(pbUrl);
-  pb.authStore.save(requiredEnv('PB_SUPERUSER_TOKEN'));
+  const pb = await getSuperuserPb(pbUrl);
 
   const cooldownSeconds = getGenerationCooldownSeconds();
   const now = new Date();
